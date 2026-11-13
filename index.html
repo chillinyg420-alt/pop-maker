@@ -1,0 +1,1129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>쌓아팔기 POP 메이커</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* Layout: 매장 직원용 3단계 작업대 — ①상품 추가 ②출력 목록(미리보기 카드) ③하단 고정 출력 바 */
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --line:#dfe2e7; --fg:#16181d; --muted:#626977;
+  --accent:#d6121b; --accent-ink:#ffffff; --sale:#f7ec15; --sale-ink:#7a0d10; --ok:#1d7a46; --soft:#eceef2;
+  --ui:"Noto Sans KR","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+  --num:Impact,"Anton","Arial Narrow",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121418; --panel:#1b1e24; --line:#2e333c; --fg:#eef0f3; --muted:#9aa2b1; --accent:#ff3b42; --accent-ink:#ffffff; --sale:#f7ec15; --sale-ink:#5c0a0c; --ok:#4cc985; --soft:#242830; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121418; --panel:#1b1e24; --line:#2e333c; --fg:#eef0f3; --muted:#9aa2b1; --accent:#ff3b42; --accent-ink:#ffffff; --sale:#f7ec15; --sale-ink:#5c0a0c; --ok:#4cc985; --soft:#242830; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 120px;display:grid;gap:18px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:24px;font-weight:900;letter-spacing:-.02em;text-wrap:balance}
+h1 b{color:var(--accent)}
+.sub{margin:2px 0 0;color:var(--muted);font-size:13px}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.chip.on{background:var(--fg);color:var(--bg)}
+section.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:14px;min-width:0}
+h2{margin:0;font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px}
+h2 .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:12px}
+.seg{display:inline-flex;background:var(--soft);border-radius:10px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;padding:8px 14px;border-radius:8px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
+input,select{font:inherit;font-size:15px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--fg);font:inherit;font-weight:700;padding:10px 16px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--fg)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted);cursor:pointer;display:grid;gap:4px}
+.drop.drag{border-color:var(--accent);color:var(--fg)}
+.drop strong{color:var(--fg);font-size:15px}
+.status{font-size:13px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.status .ok{color:var(--ok);font-weight:700}
+.searchrow{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:8px}
+@media (max-width:560px){.searchrow{grid-template-columns:1fr}}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;max-height:420px;overflow-y:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:640px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--soft);font-weight:700;font-size:12px;color:var(--muted);z-index:1}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.badge{display:inline-block;font-size:11px;font-weight:900;padding:2px 7px;border-radius:5px;letter-spacing:.02em}
+.badge.sale{background:var(--sale);color:var(--sale-ink)}
+.badge.reg{background:var(--soft);color:var(--muted)}
+.badge.ex{background:var(--fg);color:var(--bg)}
+.empty{color:var(--muted);font-size:13px;padding:14px;text-align:center}
+.list{display:grid;gap:12px}
+.item{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:14px;border:1px solid var(--line);border-radius:10px;padding:12px;align-items:start}
+@media (max-width:720px){.item{grid-template-columns:1fr}}
+.item canvas.portrait{max-width:250px;margin:0 auto}
+.item canvas{width:100%;height:auto;border-radius:4px;display:block;box-shadow:0 1px 3px rgba(0,0,0,.18);background:#fff}
+.fields{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));min-width:0}
+.fields .wide{grid-column:1/-1}
+.itemhead{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.itemhead .t{font-weight:700;font-size:14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0}
+.itemhead .acts{display:flex;gap:6px}
+.hint{font-size:12px;color:var(--muted)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);z-index:20;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+.bar .in{max-width:1180px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.bar .cnt{font-weight:700}
+.bar .cnt small{font-weight:400;color:var(--muted);margin-left:6px}
+.bar .acts{display:flex;gap:8px;flex-wrap:wrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:9px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:40;padding:16px}
+.overlay .box{background:var(--panel);color:var(--fg);border-radius:12px;padding:20px 24px;font-weight:700;display:grid;gap:8px;text-align:center}
+.overlay .box small{font-weight:400;color:var(--muted)}
+#printArea{display:none}
+.seg.big{display:grid;grid-template-columns:1fr 1fr;width:100%}
+.seg.big button{font-size:16px;padding:12px}
+#evPanel{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:12px;background:var(--soft)}
+.evcard{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:8px}
+.evimgs{display:flex;gap:8px;flex-wrap:wrap}
+.evimg{display:grid;gap:4px;justify-items:start;width:130px}
+.evimg img{width:130px;height:92px;object-fit:contain;background:#222;border-radius:4px}
+.evimg select{font-size:12px;padding:4px}
+.signs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.signbtn{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:6px;cursor:pointer;display:grid;gap:4px;font:inherit;font-size:12px;color:var(--fg);justify-items:center}
+.signbtn img{width:150px;height:70px;object-fit:contain;background:#222;border-radius:3px}
+.signbtn:hover{border-color:var(--fg)}
+.setrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.setrow .lab{font-size:13px;font-weight:700;min-width:34px}
+.setrow select{width:auto;min-width:180px}
+#bgPanel{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:12px;background:var(--soft)}
+.bgrow{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px;flex-wrap:wrap}
+.bgrow img{width:64px;height:64px;object-fit:cover;border-radius:4px}
+.bgprev{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.bgprev canvas{max-height:220px;max-width:100%;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.2);background:#fff}
+.photo{border:2px dashed var(--line);border-radius:8px;padding:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted);outline:none}
+.photo:focus{border-color:var(--accent);color:var(--fg)}
+.photo img{width:64px;height:64px;object-fit:contain;background:#fff;border-radius:4px;border:1px solid var(--line)}
+@media print{
+  @page{size:A4 landscape;margin:0}
+  @page land{size:A4 landscape;margin:0}
+  @page port{size:A4 portrait;margin:0}
+  html,body,:root{margin:0!important;padding:0!important;background:#fff;height:auto}
+  .wrap,.bar,.toast,.overlay{display:none!important}
+  #printArea{display:block;margin:0;padding:0}
+  #printArea .pg{width:297mm;height:209.5mm;margin:0;padding:0;overflow:hidden;break-inside:avoid;page-break-inside:avoid;page:land}
+  #printArea .pg.p{width:210mm;height:296.5mm;page:port}
+  #printArea .pg:not(:last-child){break-after:page;page-break-after:always}
+  #printArea img{width:100%;height:100%;object-fit:contain;display:block}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>쌓아팔기 <b>POP</b> 메이커 <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13</span></h1>
+      <p class="sub">ST·MS·SP·SE 채널 · 기본 상품 POP · 행사 상품 POP · 더블A4 / A4 · A5 가로·세로</p>
+    </div>
+    <div class="steps"><span class="chip on">① POP 종류 · 크기</span><span class="chip">② 상품 추가</span><span class="chip">③ PDF 저장 · 인쇄</span></div>
+  </header>
+
+  <section class="card" aria-labelledby="h-set">
+    <h2 id="h-set"><span class="n">1</span>POP 종류 · 크기 <span class="hint" style="font-weight:400">여기서 고른 설정이 새로 추가하는 POP에 적용됩니다</span></h2>
+    <div id="settings" style="display:grid;gap:10px"></div>
+    <input type="file" id="pptFile" accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+    <div id="evPanel" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>행사 관리</b><button type="button" class="btn sm" id="closeEv">닫기</button></div>
+      <div class="drop" id="pptDrop" tabindex="0" role="button" aria-label="행사 PPT 올리기">
+        <strong>행사 PPT 올리기 (.ppt · .pptx)</strong>
+        <span>본사에서 받은 행사 POP 파일을 그대로 올리면 배경과 고정 사인(타이틀·최대 할인 등)을 자동으로 나눕니다</span>
+        <span style="font-size:12px">이 PC에만 저장됩니다 · 잘못 나뉜 이미지는 아래 「용도」에서 바꿀 수 있습니다</span>
+      </div>
+      <div id="evList" style="display:grid;gap:10px"></div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-add">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 id="h-add"><span class="n">2</span>상품 추가</h2>
+      <div class="seg" role="group" aria-label="입력 방식">
+        <button id="tabXls" aria-pressed="true">엑셀 가격표</button>
+        <button id="tabManual" aria-pressed="false">스타일 코드 입력</button>
+      </div>
+    </div>
+
+    <div id="paneXls" style="display:grid;gap:12px">
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="가격표 엑셀 파일 선택">
+        <strong>가격표.xlsx 올리기</strong>
+        <span>여기를 눌러 파일 선택 또는 끌어다 놓기 · 사내 시스템 「Shoe Card 출력」 엑셀</span>
+        <span style="font-size:12px">한 번 올리면 이 PC 브라우저에 보관돼 다음부터 자동 적용 · 외부로 전송하지 않습니다</span>
+      </div>
+      <div class="status" id="xlsStatus">아직 가격표를 올리지 않았습니다.</div>
+      <div id="searchBox" hidden style="display:grid;gap:10px">
+        <div class="searchrow">
+          <input id="q" type="search" placeholder="상품코드 · 스타일 · 상품명 · 컬러로 검색 (예: IF8768, CAMPUS)" autocomplete="off">
+          <select id="brandFilter" aria-label="브랜드 필터"><option value="">전체 브랜드</option></select>
+        </div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th></th><th>브랜드</th><th>상품코드</th><th>스타일</th><th>상품명</th><th>컬러</th><th style="text-align:right">정상가</th><th style="text-align:right">판매가</th><th>구분</th></tr></thead>
+            <tbody id="results"></tbody>
+          </table>
+        </div>
+        <div class="hint" id="resultHint"></div>
+      </div>
+    </div>
+
+    <div id="paneManual" hidden style="display:grid;gap:10px">
+      <div class="status" id="lookupState"></div>
+      <form id="manualForm" style="display:grid;gap:10px" autocomplete="off">
+        <label style="font-size:13px;color:var(--fg);font-weight:700">STYLE 또는 상품코드
+          <input id="m_style" placeholder="예: IF8768 · 입력하면 가격표에서 자동으로 채웁니다" style="font-size:17px;padding:12px">
+        </label>
+        <div id="m_suggest" hidden style="display:grid;gap:6px"></div>
+        <div class="grid">
+          <label id="m_brandWrap">브랜드 배경<select id="m_brand"></select></label>
+          <label class="stackonly">COLOR<input id="m_color" placeholder="예: BLACK"></label>
+          <label class="stackonly">SIZE (직접 입력)<input id="m_size" placeholder="예: 230~280 · 비우면 빈칸"></label>
+          <label>정상가 (원)<input id="m_reg" inputmode="numeric" placeholder="예: 139000"></label>
+          <label>판매가 (원)<input id="m_sale" inputmode="numeric" placeholder="세일 아니면 비움"></label>
+          <div style="display:flex;align-items:end"><button class="btn primary" type="submit" style="width:100%">목록에 추가</button></div>
+        </div>
+      </form>
+      <p class="hint" style="margin:0">가격표에 없는 상품은 칸을 직접 채우면 됩니다. 판매가가 정상가보다 낮으면 세일 양식으로 자동 전환됩니다.</p>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-list">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 id="h-list"><span class="n">3</span>출력 목록 <span class="chip" id="listCount">0개</span></h2>
+      <button class="btn sm" id="clearAll">목록 비우기</button>
+    </div>
+    <p class="hint" style="margin:0">미리보기는 실제 출력과 같은 모양입니다. 양식·크기·방향도 POP마다 바꿀 수 있습니다. A5는 같은 방향끼리 2개씩 A4 1장에 절취선과 함께 나옵니다.</p>
+    <div class="list" id="list"></div>
+  </section>
+</div>
+
+<div class="bar">
+  <div class="in">
+    <div class="cnt" id="barCount">0개</div>
+    <div class="acts">
+      <button class="btn" id="printBtn" hidden>바로 인쇄</button>
+      <button class="btn primary" id="pdfBtn">PDF 저장 (인쇄용)</button>
+    </div>
+  </div>
+</div>
+<div id="printArea"></div>
+
+<script src="brands.js?v=20261113"></script>
+<script>
+const BRANDS = window.POP_BRANDS || [];
+const EMU_W = 10691813, EMU_H = 7559675;
+const PRINT_W = 3508, PRINT_H = 2480; // A4 300dpi
+const PT = 12700;
+
+/* ---------- 브랜드 매칭 ---------- */
+const brandIdx = {}; BRANDS.forEach((b,i)=>brandIdx[b.name]=i);
+const imgCache = {};
+function brandImg(i){
+  if(imgCache[i]) return imgCache[i];
+  const im = new Image(); im.src = 'data:image/jpeg;base64,'+BRANDS[i].data;
+  imgCache[i] = im.decode().then(()=>im).catch(()=>im);
+  return imgCache[i];
+}
+const ALIAS = {'ABC MART':'ABC-MART 공용','ABC SELECT':'ABC-MART 공용','ASICS':'ASICS (퍼포먼스)','ASICS TIGER':'ASICS (스포츠스타일)',
+  'ROCKFISH WEATHERWEAR':'ROCKFISH','HUSHPUPPIES':'HUSH PUPPIES','HUSH PUPPIES':'HUSH PUPPIES','REDWING':'RED WING','FINGERFREE':'FINGER FREE BY WINGSFOOT',
+  'FINGER FREE':'FINGER FREE BY WINGSFOOT','DR. MARTENS':'DR.MARTENS','DRMARTENS':'DR.MARTENS','PESCHURA':'FESSURA','OBOZ':'OBOZ','KIDS ON THE STREET':'KIDS ON THE STREET'};
+function matchBrand(brand, line){
+  const b = String(brand||'').trim().toUpperCase();
+  if(b==='ADIDAS') return brandIdx[/ORIGINAL/i.test(line||'')?'ADIDAS ORIGINALS':'ADIDAS'];
+  if(ALIAS[b] && brandIdx[ALIAS[b]]!=null) return brandIdx[ALIAS[b]];
+  if(brandIdx[b]!=null) return brandIdx[b];
+  const hit = BRANDS.findIndex(x=>x.name.replace(/[^A-Z0-9]/g,'')===b.replace(/[^A-Z0-9]/g,''));
+  return hit>=0 ? hit : 0; // 0 = ABC-MART 공용
+}
+
+/* ---------- 상태 ---------- */
+let items = [];
+let DATA=[], HAY=[], STYLE_IX=new Map(), CODE_IX=new Map();
+let uid = 1;
+const won = n => (Number(n)||0).toLocaleString('ko-KR');
+const toNum = v => { const n = Number(String(v??'').replace(/[^0-9.]/g,'')); return isFinite(n)?Math.round(n):0; };
+function discount(it){ const r=toNum(it.reg), s=toNum(it.sale); return (r>0 && s>0 && s<r) ? Math.floor((1-s/r)*100) : 0; }
+function isSale(it){ return discount(it)>0; }
+function save(){ try{ localStorage.setItem('popmaker_items', JSON.stringify(items.map(({canvas,photo,...r})=>({...r,hasPhoto:!!photo})))); }catch(e){} }
+function load(){ try{ const v=JSON.parse(localStorage.getItem('popmaker_items')||'null'); if(Array.isArray(v)) return v; }catch(e){} return null; }
+
+/* ---------- POP 그리기 (원본 PPT 좌표를 그대로 환산) ---------- */
+const FONT_NUM = 'Impact, Anton, "Arial Narrow", sans-serif';
+const FONT_KR = '"Malgun Gothic","맑은 고딕","Noto Sans KR",sans-serif';
+let fontsReady = null;
+function ensureFonts(){
+  if(!fontsReady) fontsReady = Promise.all([
+    document.fonts.load('100px Anton'), document.fonts.load('700 100px "Noto Sans KR"'), document.fonts.load('400 100px "Noto Sans KR"')
+  ]).catch(()=>{}).then(()=>document.fonts.ready);
+  return fontsReady;
+}
+function fitText(ctx, runs, maxW){ // runs: [{t,size,font,weight}], returns scale
+  let w=0; runs.forEach(r=>{ctx.font=`${r.weight||''} ${r.size}px ${r.font}`; w+=ctx.measureText(r.t).width;});
+  return w>maxW ? maxW/w : 1;
+}
+function drawRuns(ctx, runs, x, baseline, align, scale, color){
+  ctx.fillStyle = color; ctx.textBaseline='alphabetic';
+  const widths = runs.map(r=>{ctx.font=`${r.weight||''} ${r.size*scale}px ${r.font}`; return ctx.measureText(r.t).width;});
+  const total = widths.reduce((a,b)=>a+b,0);
+  let cx = align==='right' ? x-total : x;
+  runs.forEach((r,i)=>{ctx.font=`${r.weight||''} ${r.size*scale}px ${r.font}`; ctx.fillText(r.t,cx,baseline); cx+=widths[i];});
+  return {left: align==='right'?x-total:x, right: align==='right'?x:x+total};
+}
+function star(ctx,cx,cy,ro,ri,n){
+  ctx.beginPath();
+  for(let i=0;i<n*2;i++){ const r=i%2?ri:ro, a=-Math.PI/2+i*Math.PI/n; ctx[i?'lineTo':'moveTo'](cx+r*Math.cos(a), cy+r*Math.sin(a)); }
+  ctx.closePath();
+}
+async function renderPOP(it, canvas, width){
+  await ensureFonts();
+  const W = width, H = Math.round(width*EMU_H/EMU_W), k = W/EMU_W;
+  canvas.width=W; canvas.height=H;
+  const ctx = canvas.getContext('2d');
+  const E = v => v*k, P = pt => pt*PT*k;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  const img = await brandImg(it.brand??0);
+  ctx.drawImage(img,0,0,W,H);
+  const sale = isSale(it);
+
+  // STYLE / COLOR / SIZE (맑은 고딕 16pt)
+  const sx = E((sale?600120:627120)+90000), sy = E((sale?3495600:3639960)+46800);
+  const lh = P(16)*1.33, maxW = E(sale?3700000:3300000);
+  const lines = [['STYLE - ',it.style],['COLOR - ',it.color],['SIZE - ',it.size]];
+  lines.forEach(([lab,val],i)=>{
+    const runs=[{t:lab,size:P(16),font:FONT_KR},{t:String(val||''),size:P(16),font:FONT_KR,weight:700}];
+    const sc = fitText(ctx,runs,maxW);
+    drawRuns(ctx,runs,sx,sy+P(16)*1.06+i*lh,'left',sc,'#000');
+  });
+
+  const right = E(sale?3133080+7287480-90000:3139560+7189560-90000);
+  const minLeft = E(3250000);
+  if(!sale){
+    const runs=[{t:'₩',size:P(100),font:FONT_KR,weight:700},{t:won(it.reg),size:P(150),font:FONT_NUM}];
+    const sc = fitText(ctx,runs,right-minLeft);
+    drawRuns(ctx,runs,right,E(4212360+46800)+P(150)*1.009,'right',sc,'#000');
+  } else {
+    const red='#ff0000';
+    // 판매가
+    const runs=[{t:'₩',size:P(120),font:FONT_KR,weight:700},{t:won(it.sale),size:P(160),font:FONT_NUM}];
+    const sc = fitText(ctx,runs,right-minLeft);
+    drawRuns(ctx,runs,right,E(4251240+46800)+P(160)*1.009,'right',sc,red);
+    // 정상가 + 취소 화살표
+    const oruns=[{t:'₩',size:P(32),font:FONT_KR,weight:700},{t:won(it.reg),size:P(40),font:FONT_NUM}];
+    const osc = fitText(ctx,oruns,E(2380000));
+    const ob = drawRuns(ctx,oruns,E(797760+90000),E(4225320+46800)+P(40)*1.009,'left',osc,'#000');
+    const ly = E(4586040), x1=E(666360), x2=Math.max(ob.right+E(90000), E(3330720));
+    ctx.strokeStyle=red; ctx.lineWidth=Math.max(1,P(2)); ctx.lineCap='butt';
+    ctx.beginPath(); ctx.moveTo(x1,ly); ctx.lineTo(x2-P(6),ly); ctx.stroke();
+    ctx.fillStyle=red; ctx.beginPath(); ctx.moveTo(x2,ly); ctx.lineTo(x2-P(9),ly-P(4)); ctx.lineTo(x2-P(9),ly+P(4)); ctx.closePath(); ctx.fill();
+    // 노란 별 + %OFF
+    const cx=E(7093080+1647000), cy=E(1260360+1647000), ro=E(1647000)-P(2.5);
+    star(ctx,cx,cy,ro,ro*0.8,32); ctx.fillStyle='#f7ec15'; ctx.fill();
+    ctx.lineWidth=E(63360); ctx.lineJoin='miter'; ctx.strokeStyle=red; ctx.stroke();
+    const pct = discount(it)+'%';
+    const tcx = E(7412040+2718360/2);
+    const s1 = fitText(ctx,[{t:pct,size:P(90),font:FONT_NUM}],E(2250000));
+    centerText(ctx,pct,P(90)*s1,tcx,E(1836720+46800)+P(90)*1.009,red);
+    centerText(ctx,'OFF',P(90)*Math.min(1,fitText(ctx,[{t:'OFF',size:P(90),font:FONT_NUM}],E(2250000))),E(7531920+2402640/2),E(2844720+46800)+P(90)*1.009,red);
+  }
+  return canvas;
+}
+function centerText(ctx,t,size,cx,base,color){
+  // drawRuns('center') 대신 정확한 가운데 정렬
+  ctx.font=`${size}px ${FONT_NUM}`; ctx.fillStyle=color; ctx.textAlign='center'; ctx.fillText(t,cx,base); ctx.textAlign='left';
+}
+
+
+/* ---------- 탭 2종(기본·행사) × 용지 5종(더블A4 / A4·A5 가로·세로) ---------- */
+const TPLS = [['basic','기본 상품 POP'],['event','행사 상품 POP']];
+const tplName = k => k==='sign' ? '고정 사인' : (TPLS.find(t=>t[0]===k)||TPLS[0])[1];
+const isDbl = it => it.paper==='D';
+const isP = it => !isDbl(it) && it.orient==='P';
+const fmtKey = it => isDbl(it) ? 'D' : (isP(it) ? 'P' : 'L');
+function pageWH(it, long){ if(isDbl(it)) return [long*2, Math.round(long/Math.SQRT2)]; return isP(it) ? [Math.round(long/Math.SQRT2), long] : [long, Math.round(long/Math.SQRT2)]; }
+const FMT_ALL = [['D','더블A4 (A4 가로 2장)'],['A4L','A4 가로'],['A4P','A4 세로'],['A5L','A5 가로'],['A5P','A5 세로']];
+const fmtVal = it => isDbl(it) ? 'D' : (it.paper||'A4')+(it.orient||'L');
+function setFmt(it,v){ if(v==='D'){ it.paper='D'; it.orient='L'; } else { it.paper=v.slice(0,2); it.orient=v.slice(2); } }
+let EVENTS = [];            // 매장에서 올린 행사 PPT {id,name,added,imgs:[{id,fmt,kind,box,data,w,h}]}
+const evById = id => EVENTS.find(e=>e.id===id);
+const evImg = (ev,id) => ev ? ev.imgs.find(x=>x.id===id) : null;
+const evBgs = ev => (ev ? ev.imgs : []).filter(x=>x.kind==='bg');
+const evSigns = ev => (ev ? ev.imgs : []).filter(x=>x.kind==='sign');
+const imgMemo = new Map();
+function loadImg(url){
+  if(!url) return Promise.resolve(null);
+  if(imgMemo.has(url)) return imgMemo.get(url);
+  const im=new Image(); im.src=url; const p=im.decode().then(()=>im).catch(()=>im); imgMemo.set(url,p); return p;
+}
+function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function cover(ctx,im,x,y,w,h,ay){ const r=Math.max(w/im.width,h/im.height), sw=w/r, sh=h/r; ctx.drawImage(im,(im.width-sw)/2,(im.height-sh)*(ay??0.5),sw,sh,x,y,w,h); }
+function contain(ctx,im,x,y,w,h){ const r=Math.min(w/im.width,h/im.height), dw=im.width*r, dh=im.height*r; ctx.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh); }
+function sampleColor(im,fx,fy){
+  try{ const c=document.createElement('canvas'); c.width=c.height=1; const x=c.getContext('2d');
+    x.drawImage(im,Math.floor(im.width*fx),Math.floor(im.height*fy),1,1,0,0,1,1); const d=x.getImageData(0,0,1,1).data; return `rgb(${d[0]},${d[1]},${d[2]})`; }
+  catch(e){ return '#ffffff'; }
+}
+function strikeLine(ctx,x1,x2,y,th,color){
+  ctx.strokeStyle=color; ctx.lineWidth=th; ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2-th*3,y); ctx.stroke();
+  ctx.fillStyle=color; ctx.beginPath(); ctx.moveTo(x2,y); ctx.lineTo(x2-th*4.5,y-th*2); ctx.lineTo(x2-th*4.5,y+th*2); ctx.closePath(); ctx.fill();
+}
+const EV_RED='#e60012';
+function arrowBadge(ctx,x,y,w,h,pct){       // 빨간 아래 화살표 + ○○% / OFF
+  ctx.fillStyle=EV_RED; ctx.beginPath();
+  ctx.moveTo(x+w*0.16,y); ctx.lineTo(x+w*0.84,y); ctx.lineTo(x+w*0.84,y+h*0.58); ctx.lineTo(x+w,y+h*0.58);
+  ctx.lineTo(x+w/2,y+h); ctx.lineTo(x,y+h*0.58); ctx.lineTo(x+w*0.16,y+h*0.58); ctx.closePath(); ctx.fill();
+  const n=String(pct), f=h*0.34, runs=[{t:n,size:f,font:FONT_NUM},{t:'%',size:f*0.54,font:FONT_NUM}];
+  const sc=fitText(ctx,runs,w*0.66); ctx.font=`${f*sc}px ${FONT_NUM}`; const w1=ctx.measureText(n).width; ctx.font=`${f*0.54*sc}px ${FONT_NUM}`; const w2=ctx.measureText('%').width;
+  drawRuns(ctx,runs,x+(w-w1-w2)/2,y+h*0.39,'left',sc,'#fff');
+  centerText(ctx,'OFF',h*0.2*Math.min(1,fitText(ctx,[{t:'OFF',size:h*0.2,font:FONT_NUM}],w*0.56)),x+w/2,y+h*0.62,'#fff');
+}
+async function renderItem(it, canvas, long){
+  const tpl=it.tpl||'basic';
+  if(tpl==='basic' && !isDbl(it) && !isP(it)) return renderPOP(it, canvas, long);   // 원본 PPT 좌표 그대로
+  await ensureFonts();
+  const [W,H]=pageWH(it,long); canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  if(tpl==='sign'){
+    const s=evImg(evById(it.ev),it.sign), im=s&&await loadImg(s.data);
+    if(im) ctx.drawImage(im,0,0,W,H); else noBg(ctx,W,H,'사인 이미지를 찾을 수 없습니다 (행사가 삭제됨)');
+    return canvas;
+  }
+  if(tpl==='basic'){ basicLayout(ctx,W,H,it,await brandImg(it.brand??0)); return canvas; }
+  // 행사 상품 POP: 같은 비율의 PPT 배경이 있으면 그대로, 없으면 다른 배경을 맞춰 깔고 흰 박스를 새로 그림
+  const ev=evById(it.ev), bgs=evBgs(ev), exact=bgs.find(b=>b.fmt===fmtKey(it));
+  let B;
+  if(exact){
+    const im=await loadImg(exact.data); ctx.drawImage(im,0,0,W,H);
+    B={x:W*exact.box[0],y:H*exact.box[1],w:W*(exact.box[2]-exact.box[0]),h:H*(exact.box[3]-exact.box[1])};
+  } else if(bgs.length){
+    // 맞는 배경이 없을 때: 가로는 더블A4 배경의 왼쪽 절반, 그 외에는 가장 비슷한 배경의 윗부분(타이틀)을 사용
+    const dbg=bgs.find(b=>b.fmt==='D'), useHalf = fmtKey(it)==='L' && dbg, src=useHalf?dbg:(bgs.find(b=>b.fmt==='L')||bgs[0]);
+    const im=await loadImg(src.data), top=src.box[1];
+    if(useHalf) ctx.drawImage(im,0,0,im.width/2,im.height,0,0,W,H); else cover(ctx,im,0,0,W,H,0);
+    const hy = useHalf ? H*top : Math.min(H*0.32, im.height*top*Math.max(W/im.width,H/im.height));
+    ctx.fillStyle=sampleColor(im,0.006,Math.min(0.98,top+0.05)); ctx.fillRect(0,hy-H*0.005,W,H-hy+H*0.005);
+    B= isP(it) ? {x:W*0.06,y:hy+H*0.01,w:W*0.88,h:H-hy-H*0.06} : {x:W*0.05,y:hy+H*0.01,w:W*0.9,h:H-hy-H*0.07};
+    ctx.fillStyle='#fff'; rr(ctx,B.x,B.y,B.w,B.h,Math.min(W,H)*0.035); ctx.fill();
+  } else { noBg(ctx,W,H,'「행사 PPT 올리기」로 행사 배경을 먼저 등록해 주세요'); return canvas; }
+  await drawEventPOP(ctx,B,it);
+  return canvas;
+}
+function noBg(ctx,W,H,msg){
+  ctx.fillStyle='#d6121b'; ctx.fillRect(0,0,W,H); ctx.fillStyle='#fff'; ctx.textAlign='center';
+  ctx.font=`700 ${Math.min(W,H)*0.05}px ${FONT_KR}`; ctx.fillText(msg,W/2,H/2,W*0.9); ctx.textAlign='left';
+}
+// 기본 상품 POP 세로형·더블A4: 브랜드 배경의 로고 영역(무늬 포함)과 ABC-MART 띠를 잘라 배치
+function basicLayout(ctx,W,H,it,im){
+  const bi=it.brand??0, boxC='#'+(BRANDS[bi].box||'ffffff');
+  ctx.fillStyle=sampleColor(im,0.012,0.62); ctx.fillRect(0,0,W,H);
+  let B;
+  if(isDbl(it)){
+    const hw=W/2, hh=H*0.445, fh=H*0.12;
+    ctx.fillStyle=sampleColor(im,0.985,0.22); ctx.fillRect(hw,0,hw,hh);
+    ctx.drawImage(im,0,0,im.width,im.height*0.445,0,0,hw,hh);
+    ctx.fillStyle=sampleColor(im,0.02,0.94); ctx.fillRect(0,H-fh,W,fh);
+    ctx.drawImage(im,0,im.height*0.88,im.width,im.height*0.12,W/4,H-fh,hw,fh);
+    B={x:W*0.025,y:hh+H*0.01,w:W*0.95,h:H-fh-hh-H*0.02};
+  } else {
+    const r=im.height/im.width, hh=W*0.445*r, fh=W*0.12*r;
+    ctx.drawImage(im,0,0,im.width,im.height*0.445,0,0,W,hh);
+    ctx.drawImage(im,0,im.height*0.88,im.width,im.height*0.12,0,H-fh,W,fh);
+    B={x:W*0.05,y:hh+H*0.012,w:W*0.9,h:H-fh-hh-H*0.026};
+  }
+  ctx.fillStyle=boxC; rr(ctx,B.x,B.y,B.w,B.h,Math.min(W,H)*0.028); ctx.fill();
+  drawStackContent(ctx,B,it,W,H);
+}
+// 기본 상품 POP 내용 (STYLE·COLOR·SIZE + 가격, 세일이면 노란 별·취소선)
+function drawStackContent(ctx,B,it,W,H){
+  const sale=isSale(it), red='#ff0000', u=Math.min(B.w,B.h*1.6), pad=u*0.035;
+  const fs=Math.min(Math.max(u*0.025,B.w*0.034),B.h*0.07), lh=fs*1.35;
+  [['STYLE - ',it.style],['COLOR - ',it.color],['SIZE - ',it.size]].forEach(([l,v],i)=>{
+    const runs=[{t:l,size:fs,font:FONT_KR},{t:String(v||''),size:fs,font:FONT_KR,weight:700}];
+    drawRuns(ctx,runs,B.x+pad,B.y+pad+fs+i*lh,'left',fitText(ctx,runs,B.w*(sale?0.5:0.9)),'#000');
+  });
+  const right=B.x+B.w-pad, base=B.y+B.h-pad*1.2, maxW=B.w-pad*2, f=Math.min(B.h*0.5,B.w*0.26);
+  if(!sale){
+    const runs=[{t:'₩',size:f*0.66,font:FONT_KR,weight:700},{t:won(it.reg),size:f,font:FONT_NUM}];
+    drawRuns(ctx,runs,right,base,'right',fitText(ctx,runs,maxW),'#000');
+    return;
+  }
+  const sr=[{t:'₩',size:f*0.72,font:FONT_KR,weight:700},{t:won(it.sale),size:f*1.05,font:FONT_NUM}];
+  const sc=fitText(ctx,sr,maxW); drawRuns(ctx,sr,right,base,'right',sc,red);
+  const fo=f*0.27, oy=Math.max(base-f*1.05*sc*0.86-fo*0.35, B.y+pad+fs+2*lh+fo*1.25);
+  const ob=drawRuns(ctx,[{t:'₩',size:fo*0.8,font:FONT_KR,weight:700},{t:won(it.reg),size:fo,font:FONT_NUM}],B.x+pad*1.4,oy,'left',1,'#000');
+  strikeLine(ctx,B.x+pad,ob.right+pad*0.6,oy-fo*0.38,Math.max(2,fo*0.06),red);
+  const ro=Math.min(u*0.16,B.h*0.3), cx=B.x+B.w-ro*0.8, cy=Math.max(B.y-ro*0.15, ro+H*0.012);
+  star(ctx,cx,cy,ro,ro*0.8,32); ctx.fillStyle='#f7ec15'; ctx.fill(); ctx.lineWidth=ro*0.04; ctx.strokeStyle=red; ctx.stroke();
+  const pct=discount(it)+'%', ps=fitText(ctx,[{t:pct,size:ro*0.62,font:FONT_NUM}],ro*1.35);
+  centerText(ctx,pct,ro*0.62*ps,cx,cy-ro*0.02,red); centerText(ctx,'OFF',ro*0.62,cx,cy+ro*0.58,red);
+}
+// 행사 상품 POP 내용: STYLE·COLOR·SIZE + 할인율 화살표 + 취소선 정상가 + 판매가, 사진은 넣었을 때만
+async function drawEventPOP(ctx,B,it){
+  const ph=it.photo, P=isP(it);
+  let A=B;
+  if(ph){
+    const im=await loadImg(ph), m=Math.min(B.w,B.h)*0.05;
+    if(P){ const h=B.h*0.33; A={x:B.x,y:B.y,w:B.w,h:B.h-h}; if(im) contain(ctx,im,B.x+m,B.y+B.h-h,B.w-m*2,h-m); }
+    else { const w=B.w*(isDbl(it)?0.34:0.4); A={x:B.x,y:B.y,w:B.w-w,h:B.h}; if(im) contain(ctx,im,B.x+B.w-w,B.y+m,w-m,B.h-m*2); }
+  }
+  const sale=isSale(it), pad=Math.min(A.w,A.h)*0.06, fs=Math.min(Math.max(A.h*0.045,A.w*0.03),A.h*0.065);
+  [['STYLE – ',it.style],['COLOR – ',it.color],['SIZE – ',it.size]].forEach(([l,v],i)=>{
+    const r=[{t:l+String(v||''),size:fs,font:FONT_NUM}]; drawRuns(ctx,r,A.x+pad,A.y+pad+fs+i*fs*1.3,'left',fitText(ctx,r,A.w*0.55),'#000'); });
+  const right=A.x+A.w-pad, base=A.y+A.h-pad*0.8;
+  if(!sale){
+    const r=[{t:'₩',size:A.h*0.3,font:FONT_KR,weight:700},{t:won(it.reg),size:A.h*0.5,font:FONT_NUM}];
+    drawRuns(ctx,r,right,base,'right',fitText(ctx,r,A.w-pad*2),EV_RED); return;
+  }
+  const aw=Math.min(A.w*0.3,A.h*0.4), ah=aw*1.3, arrowBottom=A.y+pad*0.3+ah;
+  arrowBadge(ctx,right-aw,A.y+pad*0.3,aw,ah,discount(it));
+  const fo=Math.min(A.h*0.15,A.w*0.09), oy=A.y+pad+fs*4.2+fo;
+  const or=[{t:'₩',size:fo*0.42,font:FONT_KR,weight:700},{t:won(it.reg),size:fo,font:FONT_NUM}];
+  const ob=drawRuns(ctx,or,A.x+pad,oy,'left',fitText(ctx,or,right-aw-pad-(A.x+pad)),'#000');
+  strikeLine(ctx,A.x+pad*0.7,ob.right+pad*0.6,oy-fo*0.38,Math.max(3,fo*0.05),EV_RED);
+  const ss=Math.min(A.h*0.6,(base-oy-pad*0.5)/0.82), sr=[{t:won(it.sale),size:ss,font:FONT_NUM}];
+  const sRight = (base-ss*0.8 < arrowBottom) ? right-aw-pad*0.5 : right;     // 판매가가 화살표와 겹치지 않게
+  drawRuns(ctx,sr,sRight,base,'right',fitText(ctx,sr,sRight-(A.x+pad)),EV_RED);
+}
+// 출력 용지 구성: 더블A4는 A4 가로 2장, A4는 1장 1개, A5는 같은 방향끼리 2개를 A4 1장에 (절취선)
+function buildSheets(list){
+  const sheets=[], wait={L:null,P:null};
+  list.forEach(it=>{
+    if(isDbl(it)){ sheets.push({orient:'L',dbl:0,cells:[it]},{orient:'L',dbl:1,cells:[it]}); return; }
+    if((it.paper||'A4')!=='A5'){ sheets.push({orient:it.orient||'L',a5:false,cells:[it]}); return; }
+    const o=it.orient||'L';
+    if(wait[o]){ wait[o].cells.push(it); wait[o]=null; }
+    else { const s={orient:o==='P'?'L':'P',a5:true,cellOrient:o,cells:[it]}; sheets.push(s); wait[o]=s; }
+  });
+  return sheets;
+}
+async function renderSheet(s, canvas){
+  if(s.dbl!=null){
+    const tmp=document.createElement('canvas'); await renderItem(s.cells[0], tmp, PRINT_W);
+    canvas.width=PRINT_W; canvas.height=PRINT_H; const c=canvas.getContext('2d');
+    c.drawImage(tmp, s.dbl*tmp.width/2, 0, tmp.width/2, tmp.height, 0, 0, PRINT_W, PRINT_H);
+    return canvas;
+  }
+  if(!s.a5) return renderItem(s.cells[0], canvas, PRINT_W);
+  const L=s.orient==='L', W=L?PRINT_W:PRINT_H, H=L?PRINT_H:PRINT_W;
+  canvas.width=W; canvas.height=H; const ctx=canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  const tmp=document.createElement('canvas');
+  for(let i=0;i<s.cells.length;i++){
+    await renderItem(s.cells[i], tmp, PRINT_H);
+    if(L) ctx.drawImage(tmp, i*W/2, 0, W/2, H); else ctx.drawImage(tmp, 0, i*H/2, W, H/2);
+  }
+  ctx.save(); ctx.setLineDash([30,20]); ctx.strokeStyle='#6b7280'; ctx.lineWidth=5; ctx.beginPath();
+  if(L){ ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); } else { ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); }
+  ctx.stroke(); ctx.restore();
+  ctx.fillStyle='#9aa0a6'; ctx.font=`40px ${FONT_KR}`; ctx.fillText('✂', L?W/2-14:12, L?44:H/2-12);
+  return canvas;
+}
+
+
+/* ---------- 행사 PPT(.ppt·.pptx)에서 배경·사인 이미지 꺼내기 ---------- */
+// .pptx: 압축 안의 ppt/media 이미지 / .ppt(구형): 「Pictures」 저장 공간 안의 JPEG·PNG 덩어리
+async function extractPptImages(buf){
+  const u8=new Uint8Array(buf), out=[];
+  const isZip=u8[0]===0x50&&u8[1]===0x4b, isOle=u8[0]===0xd0&&u8[1]===0xcf&&u8[2]===0x11&&u8[3]===0xe0;
+  if(!isZip && !isOle) throw new Error('PPT 파일(.ppt 또는 .pptx)만 올릴 수 있습니다.');
+  const C=(typeof XLSX!=='undefined'&&XLSX.CFB)||(typeof CFB!=='undefined'&&CFB);
+  if(!C) throw new Error('PPT 읽기 도구를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요.');
+  const cf=C.read(u8,{type:'array'});
+  const asU8=c=>c instanceof Uint8Array?c:new Uint8Array(c);
+  if(isZip){                                  // .pptx: 압축 안의 ppt/media 이미지
+    cf.FullPaths.forEach((p,i)=>{ const f=cf.FileIndex[i];
+      if(/ppt\/media\/[^/]+\.(png|jpe?g)$/i.test(p) && f.content) out.push({bytes:asU8(f.content),type:/png$/i.test(p)?'image/png':'image/jpeg'}); });
+    return out;
+  }
+  const ent=C.find(cf,'Pictures'); if(!ent||!ent.content) return out;   // .ppt(구형): Pictures 안의 JPEG·PNG
+  const p=asU8(ent.content); let i=0;
+  while(i+8<=p.length){
+    const type=p[i+2]|(p[i+3]<<8), len=(p[i+4]|(p[i+5]<<8)|(p[i+6]<<16)|(p[i+7]<<24))>>>0, s=i+8, e=Math.min(p.length,s+len);
+    if(len>16){
+      for(let k=s;k<Math.min(e,s+80);k++){
+        if(p[k]===0xFF&&p[k+1]===0xD8&&p[k+2]===0xFF){ out.push({bytes:p.slice(k,e),type:'image/jpeg'}); break; }
+        if(p[k]===0x89&&p[k+1]===0x50&&p[k+2]===0x4E&&p[k+3]===0x47){ out.push({bytes:p.slice(k,e),type:'image/png'}); break; }
+      }
+    }
+    i = len>0 ? e : i+8;
+  }
+  return out;
+}
+// 이미지 1장을 분석: 크기 비율로 세로/가로/더블 구분, 큰 흰 박스가 있으면 POP 배경, 없으면 고정 사인
+function classifyImage(im){
+  const w=im.width, h=im.height, r=w/h, long=Math.max(w,h);
+  if(long<700) return null;                                   // 로고·작은 이미지는 제외
+  let fmt=null;
+  if(Math.abs(r-1/Math.SQRT2)<0.07) fmt='P';
+  else if(Math.abs(r-Math.SQRT2)<0.12) fmt='L';
+  else if(Math.abs(r-2*Math.SQRT2)<0.25) fmt='D';
+  if(!fmt) return null;                                       // A4 비율이 아니면 상품 사진 등으로 보고 제외
+  const sw=200, sh=Math.round(sw*h/w), c=document.createElement('canvas'); c.width=sw; c.height=sh;
+  const x=c.getContext('2d'); x.drawImage(im,0,0,sw,sh);
+  let d; try{ d=x.getImageData(0,0,sw,sh).data; }catch(e){ return {fmt,kind:'sign',box:null}; }
+  // 밝은 무채색(흰색~연회색) 칸 중 가장 큰 덩어리를 가격 박스로 본다
+  const N=sw*sh, light=new Uint8Array(N);
+  for(let i=0;i<N;i++){ const r_=d[i*4],g=d[i*4+1],b=d[i*4+2], mx=Math.max(r_,g,b), mn=Math.min(r_,g,b); light[i]=(mn>195 && mx-mn<18)?1:0; }
+  const lab=new Int32Array(N).fill(-1); let best=null;
+  for(let i=0;i<N;i++){ if(!light[i]||lab[i]>=0) continue;
+    const st=[i]; lab[i]=i; let n=0,x0=sw,x1=0,y0=sh,y1=0;
+    while(st.length){ const q=st.pop(), qx=q%sw, qy=(q/sw)|0; n++; if(qx<x0)x0=qx; if(qx>x1)x1=qx; if(qy<y0)y0=qy; if(qy>y1)y1=qy;
+      for(const nb of [q-1,q+1,q-sw,q+sw]){ if(nb<0||nb>=N||lab[nb]>=0||!light[nb]) continue; if((nb===q-1&&qx===0)||(nb===q+1&&qx===sw-1)) continue; lab[nb]=i; st.push(nb); } }
+    if(!best||n>best.n) best={n,x0,x1:x1+1,y0,y1:y1+1};
+  }
+  if(!best) return {fmt,kind:'sign',box:null};
+  const bw=best.x1-best.x0, bh=best.y1-best.y0, area=bw*bh/N, fill=best.n/(bw*bh);
+  const touches=(best.x0<=1&&best.x1>=sw-1&&best.y0<=1&&best.y1>=sh-1);
+  if(area<0.12 || area>0.95 || fill<0.8 || touches) return {fmt,kind:'sign',box:null};
+  const x0=best.x0, x1=best.x1, y1=best.y1; let y0=best.y0;
+  const rowClear=yy=>{ let n=0; for(let xx=x0;xx<x1;xx++) if(light[yy*sw+xx]) n++; return n/(x1-x0); };
+  while(y0<y1-5 && rowClear(y0)<0.93) y0++;
+  return {fmt,kind:'bg',box:[x0/sw,y0/sh,x1/sw,y1/sh].map(v=>Math.round(v*1000)/1000),gray:(()=>{const o=(((y0+y1)>>1)*sw+((x0+x1)>>1))*4; return d[o]<235;})()};
+}
+
+/* ---------- 출력 목록 UI ---------- */
+const listEl = document.getElementById('list');
+const brandOptions = BRANDS.map((b,i)=>`<option value="${i}">${b.name}${b.lowres?' (저해상도)':''}</option>`).join('');
+document.getElementById('m_brand').innerHTML = brandOptions;
+function addItem(it, quiet){
+  const obj = {id:uid++, brand:0, style:'', color:'', size:'', reg:'', sale:'', example:false, tpl:DEF.tpl, paper:DEF.paper, orient:DEF.orient, ev:DEF.ev, ...it};
+  items.push(obj); renderList(); save();
+  if(!quiet) toast(`목록에 추가했습니다 · ${items.length}개`);
+}
+let renderTimers = {};
+function schedulePreview(it, el){
+  clearTimeout(renderTimers[it.id]);
+  renderTimers[it.id] = setTimeout(()=>{ const c=el.querySelector('canvas'); c.classList.toggle('portrait',isP(it)); renderItem(it, c, 760); updateHead(it, el); }, 120);
+}
+function updateHead(it, el){
+  const b=el.querySelector('.kind'); if(!b) return;
+  if(it.tpl==='sign'){ b.outerHTML='<span class="badge reg kind">고정 사인</span>'; return; }
+  const d = discount(it);
+  b.outerHTML = d ? `<span class="badge sale kind">세일 ${d}%</span>` : `<span class="badge reg kind">정상가</span>`;
+}
+function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const opt = (pairs,v) => pairs.map(([k,l])=>`<option value="${k}"${k===v?' selected':''}>${l}</option>`).join('');
+const evOptions = v => EVENTS.length ? EVENTS.map(e=>`<option value="${e.id}"${e.id===v?' selected':''}>${esc(e.name)}</option>`).join('') : '<option value="">(등록된 행사 없음)</option>';
+function mallURL(s){ return 'https://abcmart.a-rt.com/display/search-word/result?searchWord='+encodeURIComponent(String(s||'').trim()); }
+function itemTitle(it){
+  if(it.tpl==='sign') return (evById(it.ev)?.name||'삭제된 행사')+' 사인';
+  if(it.tpl==='event') return evById(it.ev)?.name || '행사 미선택';
+  return BRANDS[it.brand]?.name||'';
+}
+function fmtLabel(it){ return isDbl(it)?'더블A4':(it.paper||'A4')+' '+(isP(it)?'세로':'가로'); }
+function sheetSummary(){
+  const sh=buildSheets(items), d=items.filter(isDbl).length, a5=items.filter(x=>x.paper==='A5').length, a4=items.length-d-a5;
+  return `${items.length}개<small>${d?`더블A4 ${d}개(2장씩) · `:''}A4 ${a4}개${a5?` · A5 ${a5}개(2개씩 1장)`:''} → 용지 ${sh.length}장</small>`;
+}
+async function setPhoto(it, file){
+  if(!file || !/^image\//.test(file.type)){ toast('사진(캡처 이미지)만 넣을 수 있습니다.'); return; }
+  try{ it.photo = await fileToDataURL(file,1600,true); await kvPut('photos', it.id, it.photo); save(); renderList(); toast('상품 사진을 넣었습니다 · 흰 여백은 자동으로 잘랐습니다'); }
+  catch(e){ toast(e.message); }
+}
+function renderList(){
+  document.getElementById('listCount').textContent = items.length+'개';
+  document.getElementById('barCount').innerHTML = sheetSummary();
+  document.getElementById('pdfBtn').disabled = !items.length;
+  document.getElementById('printBtn').disabled = !items.length;
+  if(!items.length){ listEl.innerHTML = '<div class="empty">출력할 POP가 없습니다. 위에서 상품을 추가하세요.</div>'; return; }
+  listEl.innerHTML = '';
+  items.forEach((it,idx)=>{
+    const tpl=it.tpl||'basic', sign=tpl==='sign', ev=tpl==='event';
+    const el = document.createElement('div'); el.className='item';
+    let fields;
+    if(sign){
+      const s=evImg(evById(it.ev),it.sign), f=s?s.fmt:'L';
+      const fm = f==='D'?[FMT_ALL[0]]:FMT_ALL.filter(x=>x[0].endsWith(f));
+      fields=`<div class="fields"><label>크기 · 방향<select id="f_fmt_${it.id}" data-k="fmt">${opt(fm,fmtVal(it))}</select></label>
+        <p class="hint wide" style="margin:0">PPT에서 꺼낸 고정 사인입니다. 그대로 출력됩니다.</p></div>`;
+    } else {
+      fields=`<div class="fields">
+        <label>탭<select id="f_tpl_${it.id}" data-k="tpl">${opt(TPLS,tpl)}</select></label>
+        <label>크기 · 방향<select id="f_fmt_${it.id}" data-k="fmt">${opt(FMT_ALL,fmtVal(it))}</select></label>
+        ${ev?`<label class="wide">행사<select id="f_ev_${it.id}" data-k="ev">${evOptions(it.ev)}</select></label>`
+            :`<label class="wide">브랜드 배경<select id="f_brand_${it.id}" data-k="brand">${brandOptions}</select></label>`}
+        <label>STYLE<input id="f_style_${it.id}" data-k="style" value="${esc(it.style)}"></label>
+        <label>COLOR<input id="f_color_${it.id}" data-k="color" value="${esc(it.color)}"></label>
+        <label class="wide">SIZE (직접 입력)<input id="f_size_${it.id}" data-k="size" value="${esc(it.size)}" placeholder="예: 230~280 · 비우면 손글씨용 빈칸"></label>
+        <label>정상가 (원)<input id="f_reg_${it.id}" data-k="reg" inputmode="numeric" value="${esc(it.reg)}"></label>
+        <label>판매가 (원)<input id="f_sale_${it.id}" data-k="sale" inputmode="numeric" value="${esc(it.sale)}" placeholder="세일 아니면 비움"></label>
+        ${ev?`<div class="wide photo" tabindex="0" data-photo aria-label="상품 사진 넣기">
+          ${it.photo?`<img src="${it.photo}" alt="상품 사진">`:''}
+          <span style="flex:1;min-width:180px">${it.photo?'<b style="color:var(--fg)">상품 사진이 들어갔습니다.</b>':'<b style="color:var(--fg)">상품 사진 (선택)</b>'}<br><span style="font-size:12px">① 「쇼핑몰에서 찾기」 → ② 사진 위에서 <b>Win+Shift+S</b>로 드래그 캡처 → ③ 이 칸을 누르고 <b>Ctrl+V</b>. 흰 여백은 자동으로 잘립니다.</span></span>
+          <input type="file" accept="image/*" hidden data-file><a class="btn sm primary" data-mall href="${mallURL(it.style)}" target="_blank" rel="noopener">쇼핑몰에서 찾기</a><button type="button" class="btn sm" data-pick>파일 선택</button>${it.photo?'<button type="button" class="btn sm" data-clear>사진 빼기</button>':''}
+        </div>`:''}
+      </div>`;
+    }
+    el.innerHTML = `
+      <div class="itemhead"><div class="t"><span class="tt">${idx+1}. ${esc(tplName(tpl))} · ${esc(itemTitle(it))}</span> ${it.example?'<span class="badge ex">예시</span>':''}<span class="badge reg kind"></span><span class="badge reg">${fmtLabel(it)}</span></div>
+        <div class="acts"><button class="btn sm" data-act="png">PNG 저장</button><button class="btn sm" data-act="dup">복제</button><button class="btn sm" data-act="del">삭제</button></div></div>
+      <canvas aria-label="POP 미리보기"></canvas>${fields}`;
+    const bs=el.querySelector('[data-k="brand"]'); if(bs) bs.value=it.brand;
+    el.querySelectorAll('[data-k]').forEach(inp=>{
+      inp.addEventListener('input',()=>{
+        const k=inp.dataset.k; it.example=false;
+        if(k==='fmt') setFmt(it,inp.value); else it[k] = k==='brand'?Number(inp.value):inp.value;
+        if(k==='tpl' && it.tpl==='event' && !evById(it.ev)) it.ev=EVENTS[0]?.id||'';
+        save();
+        if(k==='style'){ const a=el.querySelector('[data-mall]'); if(a) a.href=mallURL(it.style); }
+        if(k==='tpl'||k==='fmt'||k==='ev'){ renderList(); return; }
+        el.querySelector('.tt').textContent = `${idx+1}. ${tplName(it.tpl)} · ${itemTitle(it)}`;
+        schedulePreview(it, el);
+      });
+    });
+    const ph=el.querySelector('[data-photo]');
+    if(ph){
+      const fi=ph.querySelector('[data-file]');
+      ph.querySelector('[data-pick]').onclick=e=>{ e.stopPropagation(); fi.click(); };
+      fi.onchange=()=>{ if(fi.files[0]) setPhoto(it, fi.files[0]); };
+      ph.addEventListener('paste',e=>{ const f=[...(e.clipboardData?.items||[])].find(x=>x.type.startsWith('image/')); if(f){ e.preventDefault(); setPhoto(it, f.getAsFile()); } else toast('캡처한 사진이 없습니다. Win+Shift+S로 먼저 캡처해 주세요.'); });
+      ph.addEventListener('dragover',e=>{ e.preventDefault(); ph.style.borderColor='var(--accent)'; });
+      ph.addEventListener('dragleave',()=>{ ph.style.borderColor=''; });
+      ph.addEventListener('drop',e=>{ e.preventDefault(); ph.style.borderColor=''; if(e.dataTransfer.files[0]) setPhoto(it, e.dataTransfer.files[0]); });
+      const cl=ph.querySelector('[data-clear]'); if(cl) cl.onclick=e=>{ e.stopPropagation(); it.photo=null; kvDel('photos',it.id); save(); renderList(); };
+    }
+    el.querySelector('[data-act="del"]').onclick=()=>{ items=items.filter(x=>x!==it); kvDel('photos',it.id); renderList(); save(); };
+    el.querySelector('[data-act="dup"]').onclick=()=>{ const {id,...r}=it; const n={...r,id:uid++}; items.splice(items.indexOf(it)+1,0,n); if(n.photo) kvPut('photos',n.id,n.photo); renderList(); save(); };
+    el.querySelector('[data-act="png"]').onclick=()=>savePNG(it);
+    listEl.appendChild(el);
+    schedulePreview(it, el);
+  });
+}
+
+/* ---------- 출력 설정 (새로 추가하는 POP에 적용) ---------- */
+let DEF={tpl:'basic',paper:'A4',orient:'L',ev:''};
+try{ const v=JSON.parse(localStorage.getItem('popmaker_def')||'null'); if(v) DEF={...DEF,...v}; }catch(e){}
+if(!['basic','event'].includes(DEF.tpl)) DEF.tpl='basic';
+if(!['D','A4','A5'].includes(DEF.paper)) DEF.paper='A4';
+function saveDef(){ try{ localStorage.setItem('popmaker_def',JSON.stringify(DEF)); }catch(e){} }
+function segHTML(name,pairs,v,cls){ return `<div class="seg${cls?' '+cls:''}" role="group" aria-label="${name}">${pairs.map(([k,l])=>`<button type="button" data-set="${name}" data-v="${k}" aria-pressed="${k===v}">${l}</button>`).join('')}</div>`; }
+function renderSettings(){
+  const box=document.getElementById('settings'), ev=DEF.tpl==='event', cur=evById(DEF.ev);
+  box.innerHTML=`
+    ${segHTML('tpl',TPLS,DEF.tpl,'big')}
+    <div class="setrow"><span class="lab">크기</span>${segHTML('paper',[['D','더블A4 (가로 2장)'],['A4','A4'],['A5','A5 (A4에 2개)']],DEF.paper)}
+      ${DEF.paper==='D'?'':`<span class="lab" style="margin-left:6px">방향</span>${segHTML('orient',[['L','가로'],['P','세로']],DEF.orient)}`}</div>
+    ${ev?`<div class="setrow"><span class="lab">행사</span><select id="defEv" aria-label="행사 선택">${evOptions(DEF.ev)}</select>
+      <button type="button" class="btn sm primary" id="upPpt">행사 PPT 올리기</button><button type="button" class="btn sm" id="openEv">행사 관리</button></div>
+      ${cur?`<div class="hint">배경: ${['D','L','P'].map(f=>evBgs(cur).some(b=>b.fmt===f)?`✓ ${f==='D'?'더블A4':f==='L'?'가로':'세로'}`:`– ${f==='D'?'더블A4':f==='L'?'가로':'세로'}(다른 배경으로 대체)`).join(' · ')}</div>
+        ${evSigns(cur).length?`<div class="signs"><span class="lab">고정 사인</span>${evSigns(cur).map(s=>`<button type="button" class="signbtn" data-addsign="${s.id}"><img src="${s.data}" alt=""><span>${s.fmt==='D'?'더블A4':s.fmt==='L'?'가로':'세로'} · 목록에 추가</span></button>`).join('')}</div>`:''}`
+        :'<div class="hint">행사 POP를 만들려면 본사에서 받은 행사 PPT(.ppt, .pptx)를 먼저 올려 주세요.</div>'}`:''}`;
+  box.querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{
+    DEF[b.dataset.set]=b.dataset.v;
+    if(DEF.tpl==='event' && !evById(DEF.ev)) DEF.ev=EVENTS[0]?.id||'';
+    saveDef(); renderSettings();
+  });
+  const sel=document.getElementById('defEv'); if(sel) sel.onchange=()=>{ DEF.ev=sel.value; saveDef(); renderSettings(); };
+  const up=document.getElementById('upPpt'); if(up) up.onclick=()=>document.getElementById('pptFile').click();
+  const oe=document.getElementById('openEv'); if(oe) oe.onclick=()=>openEvPanel(document.getElementById('evPanel').hidden);
+  box.querySelectorAll('[data-addsign]').forEach(b=>b.onclick=()=>{
+    const s=evImg(cur,b.dataset.addsign); addItem({tpl:'sign',ev:cur.id,sign:s.id,paper:s.fmt==='D'?'D':'A4',orient:s.fmt==='P'?'P':'L'}); });
+  document.getElementById('m_brandWrap').hidden = ev;
+}
+
+/* ---------- 행사 PPT 등록·관리 (이 PC에만 저장) ---------- */
+async function saveEvents(){ await kvPut('bgs','events',EVENTS); }
+function openEvPanel(show){ const p=document.getElementById('evPanel'); p.hidden=!show; if(show){ renderEvPanel(); try{ p.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){} } }
+const KIND_OPTS=[['bg','POP 배경'],['sign','고정 사인'],['off','사용 안 함']];
+function renderEvPanel(){
+  const list=document.getElementById('evList');
+  list.innerHTML = EVENTS.length ? EVENTS.map(e=>`<div class="evcard">
+      <div class="setrow"><input value="${esc(e.name)}" data-evname="${e.id}" aria-label="행사 이름" style="flex:1;min-width:160px"><span class="hint">${new Date(e.added).toLocaleDateString('ko-KR')} 등록</span><button type="button" class="btn sm" data-evdel="${e.id}">행사 삭제</button></div>
+      <div class="evimgs">${e.imgs.map(x=>`<div class="evimg"><img src="${x.data}" alt=""><span class="badge reg">${x.fmt==='D'?'더블A4':x.fmt==='L'?'가로':'세로'}</span>
+        <select data-kind="${e.id}|${x.id}" aria-label="용도">${opt(KIND_OPTS,x.kind)}</select></div>`).join('')}</div></div>`).join('')
+    : '<div class="hint">아직 등록된 행사가 없습니다.</div>';
+  list.querySelectorAll('[data-evname]').forEach(i=>i.onchange=()=>{ const e=evById(i.dataset.evname); e.name=i.value.trim()||e.name; saveEvents(); renderSettings(); renderList(); });
+  list.querySelectorAll('[data-kind]').forEach(s=>s.onchange=()=>{ const [eid,iid]=s.dataset.kind.split('|'); const x=evImg(evById(eid),iid);
+    x.kind=s.value; if(x.kind==='bg'&&!x.box) x.box=[0.05,0.3,0.95,0.93]; saveEvents(); renderSettings(); renderList(); });
+  list.querySelectorAll('[data-evdel]').forEach(b=>b.onclick=()=>{
+    if(!b.dataset.confirm){ b.dataset.confirm=1; b.textContent='한 번 더 누르면 삭제'; return; }
+    EVENTS=EVENTS.filter(x=>x.id!==b.dataset.evdel); saveEvents(); if(!evById(DEF.ev)){ DEF.ev=EVENTS[0]?.id||''; saveDef(); } renderEvPanel(); renderSettings(); renderList(); });
+}
+function aHash(im){ const c=document.createElement('canvas'); c.width=c.height=12; const x=c.getContext('2d'); x.drawImage(im,0,0,12,12);
+  let d; try{ d=x.getImageData(0,0,12,12).data; }catch(e){ return String(Math.random()); }
+  const g=[]; for(let i=0;i<144;i++) g.push(d[i*4]*0.3+d[i*4+1]*0.59+d[i*4+2]*0.11); const m=g.reduce((a,b)=>a+b,0)/144; return g.map(v=>v>m?1:0).join(''); }
+const hamming=(a,b)=>{ let n=0; for(let i=0;i<a.length;i++) if(a[i]!==b[i]) n++; return n; };
+async function addPptFile(file){
+  if(!file) return;
+  if(!/\.pptx?$/i.test(file.name)){ toast('PPT 파일(.ppt 또는 .pptx)만 올릴 수 있습니다.'); return; }
+  const ov=overlay('행사 PPT 분석 중…',`${file.name} · 배경과 사인을 자동으로 나누는 중`);
+  try{
+    const raw=await extractPptImages(await file.arrayBuffer());
+    const found=[];
+    for(const r of raw){
+      const url=URL.createObjectURL(new Blob([r.bytes],{type:r.type})), im=new Image();
+      try{ im.src=url; await im.decode(); }catch(e){ URL.revokeObjectURL(url); continue; }
+      const c=classifyImage(im); if(!c){ URL.revokeObjectURL(url); continue; }
+      const h=aHash(im), dup=found.find(f=>f.fmt===c.fmt && hamming(f.h,h)<=6);
+      if(dup){ if(im.width>dup.im.width){ URL.revokeObjectURL(dup.url); Object.assign(dup,{im,url,...c,h}); } else URL.revokeObjectURL(url); continue; }
+      found.push({im,url,h,...c});
+    }
+    if(!found.length){ toast('이 PPT에서 A4 비율의 배경·사인 이미지를 찾지 못했습니다.'); return; }
+    const imgs=[];
+    for(const f of found){
+      const max=f.fmt==='D'?PRINT_W*2:PRINT_W, r=Math.min(1,max/Math.max(f.im.width,f.im.height)), c=document.createElement('canvas');
+      c.width=Math.round(f.im.width*r); c.height=Math.round(f.im.height*r); c.getContext('2d').drawImage(f.im,0,0,c.width,c.height);
+      imgs.push({id:'i'+imgs.length+'_'+Date.now().toString(36),fmt:f.fmt,kind:f.kind,box:f.box,data:c.toDataURL('image/jpeg',0.92),w:f.im.width,h:f.im.height});
+      URL.revokeObjectURL(f.url);
+    }
+    imgs.sort((a,b)=>(a.kind===b.kind?0:a.kind==='bg'?-1:1));
+    const name=file.name.replace(/\.pptx?$/i,'').replace(/^[0-9a-f]{8}-/i,'').replace(/[_]+/g,' ').trim().slice(0,40)||'새 행사';
+    const ev={id:'ev'+Date.now(),name,added:Date.now(),imgs};
+    EVENTS.unshift(ev); await saveEvents(); DEF.ev=ev.id; DEF.tpl='event'; saveDef();
+    renderSettings(); openEvPanel(true);
+    const nb=imgs.filter(x=>x.kind==='bg').length, ns=imgs.length-nb;
+    toast(`행사를 등록했습니다 · POP 배경 ${nb}개, 고정 사인 ${ns}개 · 잘못 나뉜 것은 「용도」에서 바꾸세요`);
+  }catch(e){ toast(e.message||'PPT를 읽지 못했습니다'); }
+  finally{ ov.remove(); }
+}
+(function initEvPanel(){
+  const fi=document.getElementById('pptFile'), drop=document.getElementById('pptDrop');
+  fi.onchange=()=>{ if(fi.files[0]) addPptFile(fi.files[0]); fi.value=''; };
+  drop.onclick=()=>fi.click(); drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fi.click(); } };
+  drop.ondragover=e=>{ e.preventDefault(); drop.classList.add('drag'); }; drop.ondragleave=()=>drop.classList.remove('drag');
+  drop.ondrop=e=>{ e.preventDefault(); drop.classList.remove('drag'); if(e.dataTransfer.files[0]) addPptFile(e.dataTransfer.files[0]); };
+  document.getElementById('closeEv').onclick=()=>openEvPanel(false);
+})();
+// 사진 읽기 (trim=true면 캡처 사진의 흰 여백을 자동으로 잘라냄)
+function fileToDataURL(file,max,trim){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file), im=new Image();
+    im.onload=()=>{
+      let sx=0,sy=0,sw=im.width,sh=im.height;
+      if(trim){ try{
+        const t=document.createElement('canvas'), k=Math.min(1,400/Math.max(sw,sh)); t.width=Math.max(1,Math.round(sw*k)); t.height=Math.max(1,Math.round(sh*k));
+        const tx=t.getContext('2d'); tx.drawImage(im,0,0,t.width,t.height); const d=tx.getImageData(0,0,t.width,t.height).data;
+        let x0=t.width,x1=-1,y0=t.height,y1=-1;
+        for(let y=0;y<t.height;y++) for(let x=0;x<t.width;x++){ const o=(y*t.width+x)*4; if(d[o+3]>20 && Math.min(d[o],d[o+1],d[o+2])<236){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+        if(x1>x0 && y1>y0){ const m=0.03*Math.max(x1-x0,y1-y0); sx=Math.max(0,(x0-m)/k); sy=Math.max(0,(y0-m)/k); sw=Math.min(im.width,(x1+m)/k)-sx; sh=Math.min(im.height,(y1+m)/k)-sy; }
+      }catch(e){} }
+      const r=Math.min(1,max/Math.max(sw,sh)), c=document.createElement('canvas');
+      c.width=Math.round(sw*r); c.height=Math.round(sh*r); const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height);
+      x.drawImage(im,sx,sy,sw,sh,0,0,c.width,c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg',0.9)); };
+    im.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('이미지를 읽지 못했습니다')); };
+    im.src=url;
+  });
+}
+
+document.getElementById('clearAll').onclick=()=>{
+  const b=document.getElementById('clearAll');
+  if(b.dataset.confirm){ items=[]; renderList(); save(); b.textContent='목록 비우기'; delete b.dataset.confirm; return; }
+  b.dataset.confirm=1; b.textContent='한 번 더 누르면 비웁니다'; setTimeout(()=>{b.textContent='목록 비우기'; delete b.dataset.confirm;},3000);
+};
+
+/* ---------- 직접 입력 ---------- */
+document.getElementById('manualForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const g=id=>document.getElementById(id).value.trim();
+  if(!toNum(g('m_reg'))){ toast('정상가를 입력해 주세요.'); return; }
+  addItem({brand:Number(g('m_brand')), style:g('m_style'), color:g('m_color'), size:g('m_size'), reg:String(toNum(g('m_reg'))), sale:g('m_sale')?String(toNum(g('m_sale'))):''});
+  ['m_style','m_color','m_size','m_reg','m_sale'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('m_suggest').hidden=true; filledFrom=null;
+  document.getElementById('m_style').focus();
+});
+
+/* ---------- 스타일 코드 → 가격표 자동 채움 ---------- */
+let filledFrom=null;
+function lookupState(){
+  const el=document.getElementById('lookupState'); if(!el) return;
+  el.innerHTML = DATA.length
+    ? `<span class="ok">✓ 자동 채움 켜짐</span><span>저장된 가격표 ${DATA.length.toLocaleString()}개 상품에서 찾습니다</span>`
+    : `<span>자동 채움을 쓰려면 「엑셀 가격표」 탭에서 가격표를 한 번 올려 주세요. 지금은 모든 칸을 직접 입력합니다.</span>`;
+}
+function findStyle(raw){
+  const q=raw.trim().toLowerCase(); if(!q || !DATA.length) return {exact:[],near:[]};
+  let exact = STYLE_IX.get(q) || [];
+  const ci = CODE_IX.get(q.replace(/^0+/,''));
+  if(!exact.length && /^\d+$/.test(q) && ci!=null) exact=[ci];
+  let near=[];
+  if(!exact.length && q.length>=3){
+    for(const [k,arr] of STYLE_IX){ if(k.startsWith(q)){ near.push(...arr); if(near.length>=12) break; } }
+  }
+  return {exact, near:near.slice(0,12)};
+}
+function fillFrom(i){
+  const d=DATA[i]; filledFrom=i;
+  const set=(id,v)=>{ document.getElementById(id).value=v; };
+  set('m_style',d.style); set('m_color',d.color); set('m_reg',String(d.reg));
+  set('m_sale', d.sale && d.sale<d.reg ? String(d.sale) : '');
+  set('m_brand', String(matchBrand(d.brand,d.line)));
+  const pc = d.reg>0 && d.sale<d.reg ? Math.floor((1-d.sale/d.reg)*100) : 0;
+  const box=document.getElementById('m_suggest'); box.hidden=false;
+  box.innerHTML=`<div class="status"><span class="ok">✓ 가격표에서 채움</span><span>${esc(d.brand)} · ${esc(d.name)} · ${esc(d.color)}</span>${pc?`<span class="badge sale">세일 ${pc}%</span>`:'<span class="badge reg">정상가</span>'}</div>`;
+  document.getElementById('m_size').focus();
+}
+function rowBtn(i){
+  const d=DATA[i]; const pc = d.reg>0 && d.sale<d.reg ? Math.floor((1-d.sale/d.reg)*100) : 0;
+  return `<button type="button" class="btn sm" data-fill="${i}" style="display:flex;justify-content:space-between;gap:10px;text-align:left;white-space:normal;font-weight:500">
+    <span><b>${esc(d.style)}</b> · ${esc(d.color)} <span style="color:var(--muted)">${esc(d.brand)} ${esc(d.name)}</span></span>
+    <span style="white-space:nowrap;font-variant-numeric:tabular-nums">${pc?`<s style="color:var(--muted)">${won(d.reg)}</s> <b style="color:var(--accent)">${won(d.sale)}</b> <span class="badge sale">${pc}%</span>`:`<b>${won(d.reg)}</b>`}</span></button>`;
+}
+let lkTimer;
+document.getElementById('m_style').addEventListener('input',()=>{
+  clearTimeout(lkTimer);
+  lkTimer=setTimeout(()=>{
+    const box=document.getElementById('m_suggest');
+    const v=document.getElementById('m_style').value;
+    if(filledFrom!=null && DATA[filledFrom] && DATA[filledFrom].style===v) return;
+    filledFrom=null;
+    if(!DATA.length || !v.trim()){ box.hidden=true; return; }
+    const {exact,near}=findStyle(v);
+    if(exact.length===1){ fillFrom(exact[0]); return; }
+    box.hidden=false;
+    if(exact.length>1) box.innerHTML=`<div class="hint">컬러가 ${exact.length}개 있습니다. 해당 컬러를 고르세요.</div>`+exact.slice(0,20).map(rowBtn).join('');
+    else if(near.length) box.innerHTML=`<div class="hint">정확히 일치하는 스타일이 없습니다. 혹시 이 상품인가요?</div>`+near.map(rowBtn).join('');
+    else box.innerHTML=`<div class="hint">가격표에 없는 스타일입니다. 아래 칸을 직접 채워 주세요.</div>`;
+    box.querySelectorAll('[data-fill]').forEach(b=>b.onclick=()=>fillFrom(Number(b.dataset.fill)));
+  },200);
+});
+document.getElementById('m_style').addEventListener('keydown',e=>{
+  if(e.key==='Enter' && filledFrom==null){ e.preventDefault(); const b=document.querySelector('#m_suggest [data-fill]'); if(b) b.click(); }
+});
+lookupState();
+
+const tabX=document.getElementById('tabXls'), tabM=document.getElementById('tabManual');
+function setTab(x){ tabX.setAttribute('aria-pressed',x); tabM.setAttribute('aria-pressed',!x);
+  document.getElementById('paneXls').hidden=!x; document.getElementById('paneManual').hidden=x; }
+tabX.onclick=()=>setTab(true); tabM.onclick=()=>setTab(false);
+
+/* ---------- 엑셀 가격표 ---------- */
+const drop=document.getElementById('drop'), fileInput=document.getElementById('fileInput');
+drop.onclick=()=>fileInput.click();
+drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileInput.click(); } };
+drop.ondragover=e=>{e.preventDefault(); drop.classList.add('drag');};
+drop.ondragleave=()=>drop.classList.remove('drag');
+drop.ondrop=e=>{e.preventDefault(); drop.classList.remove('drag'); if(e.dataTransfer.files[0]) readXls(e.dataTransfer.files[0]);};
+fileInput.onchange=()=>{ if(fileInput.files[0]) readXls(fileInput.files[0]); fileInput.value=''; };
+
+function overlay(msg,sub){ const o=document.createElement('div'); o.className='overlay'; o.innerHTML=`<div class="box">${msg}<small>${sub||''}</small></div>`; document.body.appendChild(o); return o; }
+async function readXls(file){
+  if(typeof XLSX==='undefined'){ toast('엑셀 읽기 도구를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요.'); return; }
+  const ov = overlay('가격표 읽는 중…', `${file.name} · ${(file.size/1048576).toFixed(1)}MB · 큰 파일은 10~20초 걸립니다`);
+  await new Promise(r=>setTimeout(r,60));
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf,{type:'array',dense:true,cellStyles:false,cellHTML:false,cellFormula:false,cellText:false,cellDates:false});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    // 사내 시스템 엑셀은 시트 범위 정보가 실제보다 작게 기록돼 있어 직접 다시 계산
+    let maxR=0, maxC=25;
+    if(Array.isArray(ws)){ maxR=ws.length-1; ws.forEach(r=>{ if(r && r.length-1>maxC) maxC=r.length-1; }); }
+    else Object.keys(ws).forEach(k=>{ if(k[0]==='!') return; const a=XLSX.utils.decode_cell(k); if(a.r>maxR) maxR=a.r; if(a.c>maxC) maxC=a.c; });
+    ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:maxR,c:maxC}});
+    const rows = XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:false});
+    const hi = rows.findIndex(r=>r && r.some(c=>String(c).trim()==='상품코드') && r.some(c=>String(c).trim()==='판매가'));
+    if(hi<0) throw new Error('「상품코드」「판매가」 열이 있는 머리글 줄을 찾지 못했습니다.');
+    const H = rows[hi].map(c=>String(c??'').replace(/\s/g,''));
+    const col = n => H.indexOf(n);
+    const C = {brand:col('브랜드'), code:col('상품코드'), name:col('상품'), style:col('스타일'), color:col('컬러'), line:col('브랜드라인'), reg:col('정상가'), sale:col('판매가'), cat:col('분류')};
+    let dateTxt=''; rows.slice(0,hi).forEach(r=>{ const s=(r||[]).join(' '); const m=s.match(/기준일자\s*:\s*([\d-]+)/); if(m) dateTxt=m[1]; });
+    let storeTxt=''; rows.slice(0,hi).forEach(r=>{ const s=(r||[]).join(' '); const m=s.match(/점구분\/점\s*:\s*(.+)$/); if(m) storeTxt=m[1].replace(/==전체==\s*\/\s*/,'').trim(); });
+    const packed=[];
+    for(let i=hi+1;i<rows.length;i++){
+      const r=rows[i]; if(!r || r[C.code]==null) continue;
+      packed.push([String(r[C.brand]??'').trim(), String(r[C.code]).trim(), String(r[C.name]??''), String(r[C.style]??''), String(r[C.color]??''),
+        C.line>=0?String(r[C.line]??''):'', toNum(r[C.reg]), toNum(r[C.sale])]);
+    }
+    if(!packed.length) throw new Error('상품 행이 하나도 없습니다.');
+    if(!dateTxt){ const d=new Date(file.lastModified||Date.now()); dateTxt=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    const meta={file:file.name, date:dateTxt, store:storeTxt, savedAt:Date.now(), count:packed.length};
+    applyData(meta, packed);
+    const ok = await idbPut(meta, packed);
+    setStatus(meta, ok ? 'saved' : 'nosave');
+    document.getElementById('q').focus();
+  }catch(err){
+    document.getElementById('xlsStatus').innerHTML = `<span style="color:var(--accent);font-weight:700">읽기 실패</span> ${esc(err.message||err)} · 사내 시스템에서 받은 원본 가격표(.xlsx)인지 확인해 주세요.`;
+  }finally{ ov.remove(); }
+}
+/* ---------- 가격표 보관 (이 PC 브라우저 안에만 저장) ---------- */
+// 저장소 버전 번호에 관계없이 열고, 필요한 칸(가격표·배경·상품사진)이 없으면 그때만 만든다
+const STORES=['pricelist','bgs','photos'];
+function idbOpen(){
+  const open=(ver)=>new Promise((res,rej)=>{
+    try{ const r = ver ? indexedDB.open('popmaker',ver) : indexedDB.open('popmaker');
+      r.onupgradeneeded=()=>{ const db=r.result; STORES.forEach(n=>{ if(!db.objectStoreNames.contains(n)) db.createObjectStore(n); }); };
+      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); r.onblocked=()=>rej(new Error('blocked')); }catch(e){ rej(e); }
+  });
+  return open().then(db=>{
+    if(STORES.every(n=>db.objectStoreNames.contains(n))) return db;
+    const v=db.version+1; db.close(); return open(v);
+  });
+}
+async function kvPut(store,key,val){ try{ const db=await idbOpen(); await new Promise((res,rej)=>{ const tx=db.transaction(store,'readwrite'); tx.objectStore(store).put(val,key); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); tx.onabort=()=>rej(tx.error); }); db.close(); return true; }catch(e){ return false; } }
+async function kvGet(store,key){ try{ const db=await idbOpen(); const v=await new Promise(res=>{ const q=db.transaction(store).objectStore(store).get(key); q.onsuccess=()=>res(q.result); q.onerror=()=>res(null); }); db.close(); return v??null; }catch(e){ return null; } }
+async function kvDel(store,key){ try{ const db=await idbOpen(); await new Promise(res=>{ const tx=db.transaction(store,'readwrite'); tx.objectStore(store).delete(key); tx.oncomplete=res; tx.onerror=res; }); db.close(); }catch(e){} }
+async function idbPut(meta, packed){
+  try{ const db=await idbOpen();
+    await new Promise((res,rej)=>{ const tx=db.transaction('pricelist','readwrite'); tx.objectStore('pricelist').put({meta,packed},'current'); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); tx.onabort=()=>rej(tx.error); });
+    db.close(); return true; }catch(e){ return false; }
+}
+async function idbGet(){
+  try{ const db=await idbOpen();
+    const v=await new Promise((res,rej)=>{ const q=db.transaction('pricelist').objectStore('pricelist').get('current'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
+    db.close(); return v||null; }catch(e){ return null; }
+}
+async function idbClear(){
+  try{ const db=await idbOpen();
+    await new Promise(res=>{ const tx=db.transaction('pricelist','readwrite'); tx.objectStore('pricelist').delete('current'); tx.oncomplete=res; tx.onerror=res; });
+    db.close(); }catch(e){}
+}
+function applyData(meta, packed){
+  DATA=new Array(packed.length); HAY=new Array(packed.length); STYLE_IX=new Map(); CODE_IX=new Map();
+  const brands=new Map();
+  for(let i=0;i<packed.length;i++){
+    const p=packed[i], d={brand:p[0],code:p[1],name:p[2],style:p[3],color:p[4],line:p[5],reg:p[6],sale:p[7]};
+    DATA[i]=d; HAY[i]=`${d.code} ${d.style} ${d.name} ${d.color} ${d.brand}`.toLowerCase();
+    const sk=d.style.trim().toLowerCase(); if(sk){ (STYLE_IX.get(sk)||STYLE_IX.set(sk,[]).get(sk)).push(i); }
+    CODE_IX.set(d.code.replace(/^0+/,''), i);
+    brands.set(d.brand,(brands.get(d.brand)||0)+1);
+  }
+  const bf=document.getElementById('brandFilter');
+  bf.innerHTML='<option value="">전체 브랜드</option>'+[...brands.entries()].sort((a,b)=>b[1]-a[1]).map(([b])=>`<option>${esc(b)}</option>`).join('');
+  document.getElementById('searchBox').hidden=false;
+  drop.hidden=true;
+  doSearch(); lookupState();
+}
+function daysOld(dateTxt){
+  const m=String(dateTxt||'').match(/(\d{4})-(\d{1,2})-(\d{1,2})/); if(!m) return null;
+  const d=new Date(+m[1],+m[2]-1,+m[3]), t=new Date(); t.setHours(0,0,0,0);
+  return Math.round((t-d)/86400000);
+}
+function setStatus(meta, mode){
+  const age=daysOld(meta.date);
+  let fresh;
+  if(age===null) fresh='';
+  else if(age<=0) fresh='<span class="badge" style="background:var(--ok);color:#fff">오늘 가격표</span>';
+  else if(age<7) fresh=`<span class="badge sale">${age}일 전 가격표</span>`;
+  else fresh=`<span class="badge" style="background:var(--accent);color:var(--accent-ink)">${age}일 지남 · 새 가격표를 올려 주세요</span>`;
+  const how = mode==='restored' ? '<span class="ok">✓ 저장된 가격표 자동 적용</span>'
+            : mode==='saved' ? '<span class="ok">✓ 불러옴 · 다음부터 자동 적용</span>'
+            : '<span class="ok">✓ 불러옴</span><span>(이 브라우저는 저장이 막혀 있어 다음에 다시 올려야 합니다)</span>';
+  document.getElementById('xlsStatus').innerHTML =
+    `${how}${fresh}<span>기준일 ${esc(meta.date)}</span><span>· ${Number(meta.count||DATA.length).toLocaleString()}개 상품</span>${meta.store?`<span>· ${esc(meta.store)}</span>`:''}
+     <button class="btn sm" id="reload">새 가격표로 교체</button><button class="btn sm" id="forget">저장 삭제</button>`;
+  document.getElementById('reload').onclick=()=>fileInput.click();
+  const fb=document.getElementById('forget');
+  fb.onclick=async()=>{
+    if(!fb.dataset.confirm){ fb.dataset.confirm=1; fb.textContent='한 번 더 누르면 삭제'; setTimeout(()=>{ if(fb.isConnected){ fb.textContent='저장 삭제'; delete fb.dataset.confirm; } },3000); return; }
+    await idbClear(); DATA=[]; HAY=[];
+    document.getElementById('searchBox').hidden=true; drop.hidden=false;
+    document.getElementById('xlsStatus').textContent='저장된 가격표를 삭제했습니다. 새 가격표를 올려 주세요.'; STYLE_IX=new Map(); CODE_IX=new Map(); lookupState();
+  };
+}
+(async()=>{
+  const v=await idbGet();
+  if(v && v.packed && v.packed.length){ applyData(v.meta, v.packed); setStatus(v.meta,'restored'); }
+})();
+
+const qEl=document.getElementById('q'), bfEl=document.getElementById('brandFilter');
+let qTimer; qEl.oninput=()=>{clearTimeout(qTimer); qTimer=setTimeout(doSearch,150);}; bfEl.onchange=doSearch;
+function doSearch(){
+  const terms = qEl.value.toLowerCase().split(/\s+/).filter(Boolean), bf=bfEl.value;
+  const out=[]; let total=0;
+  for(let i=0;i<DATA.length;i++){
+    if(bf && DATA[i].brand!==bf) continue;
+    if(terms.length && !terms.every(t=>HAY[i].includes(t))) continue;
+    total++; if(out.length<60) out.push(i);
+  }
+  const tb=document.getElementById('results');
+  if(!terms.length && !bf){ tb.innerHTML='<tr><td colspan="9" class="empty">상품코드·스타일·상품명을 입력하거나 브랜드를 고르세요.</td></tr>'; document.getElementById('resultHint').textContent=''; return; }
+  tb.innerHTML = out.length ? out.map(i=>{ const d=DATA[i]; const pc = d.reg>0 && d.sale<d.reg ? Math.floor((1-d.sale/d.reg)*100) : 0;
+    return `<tr><td><button class="btn sm primary" data-i="${i}">추가</button></td><td>${esc(d.brand)}</td><td>${esc(d.code)}</td><td>${esc(d.style)}</td><td class="name" title="${esc(d.name)}">${esc(d.name)}</td><td>${esc(d.color)}</td><td class="num">${won(d.reg)}</td><td class="num">${won(d.sale)}</td><td>${pc?`<span class="badge sale">${pc}%</span>`:'<span class="badge reg">정상</span>'}</td></tr>`; }).join('')
+    : '<tr><td colspan="9" class="empty">검색 결과가 없습니다. 상품코드 앞자리 0까지 넣었는지 확인해 보세요.</td></tr>';
+  document.getElementById('resultHint').textContent = total>60 ? `${total.toLocaleString()}건 중 60건 표시 · 검색어를 더 넣으면 좁혀집니다` : total ? `${total}건` : '';
+  tb.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>{
+    const d=DATA[Number(b.dataset.i)];
+    addItem({brand:matchBrand(d.brand,d.line), style:d.style, color:d.color, reg:String(d.reg), sale: d.sale && d.sale<d.reg ? String(d.sale) : ''});
+    b.textContent='추가됨'; b.classList.remove('primary');
+  });
+}
+
+/* ---------- 출력 ---------- */
+let downloads=null;
+(async()=>{ try{ if(window.claude?.use){ downloads = await window.claude.use('downloads'); } }catch(e){}
+  if(!window.claude?.use){ document.getElementById('printBtn').hidden=false; } })();
+async function offerFile(filename, blob){
+  if(downloads){
+    try{ await downloads.save({filename, data:blob}); toast('저장했습니다 · 파일을 열어 인쇄하세요'); }
+    catch(e){ toast(e?.code==='declined'?'저장을 취소했습니다.':'이 화면에서는 저장할 수 없습니다. 아래 안내를 확인해 주세요.'); }
+    return;
+  }
+  if(window.claude?.use){ toast('이 화면에서는 파일 저장이 막혀 있습니다. 링크를 브라우저에서 열어 주세요.'); return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},4000); toast('저장했습니다 · 파일을 열어 인쇄하세요');
+}
+const stamp=()=>{ const d=new Date(); return String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0'); };
+const safe=s=>String(s||'').replace(/[\\/:*?"<>|\s]+/g,'_').slice(0,40);
+async function savePNG(it){
+  const c=document.createElement('canvas'); await renderItem(it,c,it.paper==='A5'?PRINT_H:PRINT_W);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  offerFile(`POP_${safe(tplName(it.tpl||'basic'))}_${safe(itemTitle(it))}_${safe(it.style)||it.id}.png`, blob);
+}
+document.getElementById('pdfBtn').onclick=async()=>{
+  if(!items.length) return;
+  if(!window.jspdf){ toast('PDF 도구를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.'); return; }
+  const sheets=buildSheets(items);
+  const ov=overlay('PDF 만드는 중…',`용지 ${sheets.length}장 · 300dpi`);
+  try{
+    const pdf=new window.jspdf.jsPDF({orientation:sheets[0].orient==='P'?'portrait':'landscape',unit:'mm',format:'a4',compress:true});
+    const c=document.createElement('canvas');
+    for(let i=0;i<sheets.length;i++){
+      ov.querySelector('small').textContent=`${i+1} / ${sheets.length}장`;
+      await renderSheet(sheets[i],c);
+      const pt=sheets[i].orient==='P';
+      if(i) pdf.addPage('a4', pt?'portrait':'landscape');
+      pdf.addImage(c.toDataURL('image/jpeg',0.93),'JPEG',0,0,pt?210:297,pt?297:210,undefined,'FAST');
+      await new Promise(r=>setTimeout(r,0));
+    }
+    await offerFile(`POP_${stamp()}_${sheets.length}장.pdf`, pdf.output('blob'));
+  }catch(e){ toast('PDF를 만들지 못했습니다: '+(e.message||e)); }
+  finally{ ov.remove(); }
+};
+document.getElementById('printBtn').onclick=async()=>{
+  const sheets=buildSheets(items);
+  const ov=overlay('인쇄 준비 중…',`용지 ${sheets.length}장`);
+  const area=document.getElementById('printArea'); area.innerHTML='';
+  const c=document.createElement('canvas');
+  for(const s of sheets){ await renderSheet(s,c); const pg=document.createElement('div'); pg.className='pg'+(s.orient==='P'?' p':''); const im=new Image(); im.src=c.toDataURL('image/jpeg',0.93); try{ await im.decode(); }catch(e){} pg.appendChild(im); area.appendChild(pg); }
+  ov.remove(); setTimeout(()=>window.print(),300);
+};
+let tt; function toast(m){ document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=m; document.body.appendChild(t); clearTimeout(tt); tt=setTimeout(()=>t.remove(),3200); }
+
+/* ---------- 시작 ---------- */
+(async()=>{
+  EVENTS = (await kvGet('bgs','events')) || [];
+  if(DEF.tpl==='event' && !evById(DEF.ev)) DEF.ev=EVENTS[0]?.id||'';
+  renderSettings();
+  const saved = load();
+  if(saved && saved.length){
+    uid = Math.max(0,...saved.map(s=>+s.id||0))+1;
+    saved.forEach(s=>{ const {hasPhoto,...r}=s; const it={paper:'A4',orient:'L',...r};
+      if(!['basic','event','sign'].includes(it.tpl)) it.tpl = (it.tpl==='season'||it.tpl==='bkStack'||it.tpl==='bkRec'||it.tpl==='event') ? 'event' : 'basic';
+      if(!['D','A4','A5'].includes(it.paper)) it.paper='A4';
+      items.push(it); });
+    await Promise.all(saved.filter(s=>s.hasPhoto).map(async s=>{ const it=items.find(x=>x.id===s.id); const u=await kvGet('photos',s.id); if(it&&u) it.photo=u; }));
+    renderList();
+  } else {
+    addItem({tpl:'basic',paper:'A4',orient:'L',brand:matchBrand('NIKE'), style:'예시-0001', color:'BLACK', size:'', reg:'99000', sale:'', example:true}, true);
+    addItem({tpl:'basic',paper:'A4',orient:'P',brand:matchBrand('ADIDAS','ORIGINAL'), style:'예시-0002', color:'WHITE', size:'230~280', reg:'139000', sale:'69000', example:true}, true);
+  }
+})();
+</script>
+
+</body>
+</html>
