@@ -15,7 +15,7 @@
 :root{
   --bg:#f3f4f6; --panel:#ffffff; --line:#dfe2e7; --fg:#16181d; --muted:#626977;
   --accent:#d6121b; --accent-ink:#ffffff; --sale:#f7ec15; --sale-ink:#7a0d10; --ok:#1d7a46; --soft:#eceef2;
-  --ui:"Noto Sans KR","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+  --ui:"Malgun Gothic","맑은 고딕","Noto Sans KR",system-ui,sans-serif;
   --num:Impact,"Anton","Arial Narrow",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
@@ -132,7 +132,7 @@ td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
 <div class="wrap">
   <header>
     <div>
-      <h1><b>POP</b> MAKER <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13-4</span></h1>
+      <h1><b>POP</b> MAKER <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13-5</span></h1>
       <p class="sub">ST·MS·SP·SE 채널 · 기본 상품 POP · 행사 상품 POP · 더블A4 / A4 · A5 가로·세로</p>
     </div>
     <div class="steps"><span class="chip on">① POP 종류 · 크기</span><span class="chip">② 상품 추가</span><span class="chip">③ PDF 저장 · 인쇄</span></div>
@@ -314,7 +314,7 @@ async function renderPOP(it, canvas, width){
   const lh = P(16)*1.33, maxW = E(sale?3700000:3300000);
   const lines = [['STYLE - ',it.style],['COLOR - ',it.color],['SIZE - ',it.size]];
   lines.forEach(([lab,val],i)=>{
-    const runs=[{t:lab,size:P(16),font:FONT_KR},{t:String(val||''),size:P(16),font:FONT_KR,weight:700}];
+    const runs=[{t:lab,size:P(16),font:FONT_KR},{t:String(val||''),size:P(16),font:FONT_KR}];
     const sc = fitText(ctx,runs,maxW);
     drawRuns(ctx,runs,sx,sy+P(16)*1.06+i*lh,'left',sc,'#000');
   });
@@ -507,16 +507,16 @@ function drawStackContent(ctx,B,it,W,H){
   const sale=isSale(it), red='#ff0000', u=Math.min(B.w,B.h*1.6), pad=u*0.035;
   const fs=Math.min(Math.max(u*0.025,B.w*0.034),B.h*0.07), lh=fs*1.35;
   [['STYLE - ',it.style],['COLOR - ',it.color],['SIZE - ',it.size]].forEach(([l,v],i)=>{
-    const runs=[{t:l,size:fs,font:FONT_KR},{t:String(v||''),size:fs,font:FONT_KR,weight:700}];
+    const runs=[{t:l,size:fs,font:FONT_KR},{t:String(v||''),size:fs,font:FONT_KR}];
     drawRuns(ctx,runs,B.x+pad,B.y+pad+fs+i*lh,'left',fitText(ctx,runs,B.w*(sale?0.5:0.9)),'#000');
   });
   const right=B.x+B.w-pad, base=B.y+B.h-pad*1.2, maxW=B.w-pad*2, f=Math.min(B.h*0.5,B.w*0.26);
   if(!sale){
-    const runs=[{t:'₩',size:f*0.66,font:FONT_KR,weight:700},{t:won(it.reg),size:f,font:FONT_NUM}];
+    const runs=[{t:'₩',size:f*0.667,font:FONT_KR,weight:700},{t:won(it.reg),size:f,font:FONT_NUM}];
     drawRuns(ctx,runs,right,base,'right',fitText(ctx,runs,maxW),'#000');
     return;
   }
-  const sr=[{t:'₩',size:f*0.72,font:FONT_KR,weight:700},{t:won(it.sale),size:f*1.05,font:FONT_NUM}];
+  const sr=[{t:'₩',size:f*1.05*0.75,font:FONT_KR,weight:700},{t:won(it.sale),size:f*1.05,font:FONT_NUM}];
   const sc=fitText(ctx,sr,maxW); drawRuns(ctx,sr,right,base,'right',sc,red);
   const fo=f*0.27, oy=Math.max(base-f*1.05*sc*0.86-fo*0.35, B.y+pad+fs+2*lh+fo*1.25);
   const ob=drawRuns(ctx,[{t:'₩',size:fo*0.8,font:FONT_KR,weight:700},{t:won(it.reg),size:fo,font:FONT_NUM}],B.x+pad*1.4,oy,'left',1,'#000');
@@ -529,7 +529,7 @@ function drawStackContent(ctx,B,it,W,H){
 // 행사 상품 POP 내용: STYLE·COLOR·SIZE + 할인율 화살표 + 취소선 정상가 + 판매가, 사진은 넣었을 때만
 // 공통 배치 엔진 — 사진 유무에 따라 배치를 따로 계산
 // opts: badge 'arrow'(행사) | 'star'(기본), saleWon(판매가 ₩ 표시), regColor(정상가만 있을 때 색), saleColor
-const OPT_EVENT={badge:'arrow',saleWon:false,regColor:EV_RED,saleColor:EV_RED,font:FONT_NUM};
+const OPT_EVENT={badge:'arrow',saleWon:false,regColor:EV_RED,saleColor:EV_RED,font:FONT_KR};
 const OPT_BASIC={badge:'star',saleWon:true,regColor:'#000',saleColor:'#ff0000',font:FONT_KR,fixed:true};
 async function drawEventPOP(ctx,B,it){ await layoutContent(ctx,B,it,OPT_EVENT); }
 function drawBadge(ctx,o,x,y,w,pct){                     // x,y = 왼쪽 위, w = 폭
@@ -543,15 +543,15 @@ function drawBadge(ctx,o,x,y,w,pct){                     // x,y = 왼쪽 위, w 
 function styleLines(ctx,it,x,y,fs,maxW,font){
   const kr=font===FONT_KR;
   [['STYLE - ',it.style],['COLOR - ',it.color],['SIZE - ',it.size]].forEach(([l,v],i)=>{
-    const r = kr ? [{t:l,size:fs,font:FONT_KR},{t:String(v||''),size:fs,font:FONT_KR,weight:700}] : [{t:l.replace('-','–')+String(v||''),size:fs,font:FONT_NUM}];
+    const r = [{t:l+String(v||''),size:fs,font:FONT_KR}];          // 원본: 맑은 고딕 보통체
     drawRuns(ctx,r,x,y+fs+i*fs*1.32,'left',fitText(ctx,r,maxW),'#000'); });
 }
 function priceRuns(it,o,s){
   const sale=isSale(it), n=won(sale?it.sale:it.reg);
-  return (sale&&!o.saleWon) ? [{t:n,size:s,font:FONT_NUM}] : [{t:'₩',size:s*0.62,font:FONT_KR,weight:700},{t:n,size:s,font:FONT_NUM}];
+  return (sale&&!o.saleWon) ? [{t:n,size:s,font:FONT_NUM}] : [{t:'₩',size:s*(sale?0.75:0.667),font:FONT_KR,weight:700},{t:n,size:s,font:FONT_NUM}];
 }
 function oldPrice(ctx,it,x,base,fo,maxW){
-  const r=[{t:'₩',size:fo*0.45,font:FONT_KR,weight:700},{t:won(it.reg),size:fo,font:FONT_NUM}];
+  const r=[{t:'₩',size:fo*0.8,font:FONT_KR,weight:700},{t:won(it.reg),size:fo,font:FONT_NUM}];
   const ob=drawRuns(ctx,r,x,base,'left',fitText(ctx,r,maxW),'#000');
   strikeLine(ctx,x-fo*0.12,ob.right+fo*0.25,base-fo*0.38,Math.max(3,fo*0.055),EV_RED);
 }
