@@ -132,7 +132,7 @@ td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
 <div class="wrap">
   <header>
     <div>
-      <h1><b>POP</b> MAKER <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13-6</span></h1>
+      <h1><b>POP</b> MAKER <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13-7</span></h1>
       <p class="sub">ST·MS·SP·SE 채널 · 기본 상품 POP · 행사 상품 POP · 더블A4 / A4 · A5 가로·세로</p>
     </div>
     <div class="steps"><span class="chip on">① POP 종류 · 크기</span><span class="chip">② 상품 추가</span><span class="chip">③ PDF 저장 · 인쇄</span></div>
@@ -399,10 +399,10 @@ function arrowBadge(ctx,x,y,w,h,pct){       // 빨간 아래 화살표 + ○○%
   ctx.fillStyle=EV_RED; ctx.beginPath();
   ctx.moveTo(x+w*0.16,y); ctx.lineTo(x+w*0.84,y); ctx.lineTo(x+w*0.84,y+h*0.58); ctx.lineTo(x+w,y+h*0.58);
   ctx.lineTo(x+w/2,y+h); ctx.lineTo(x,y+h*0.58); ctx.lineTo(x+w*0.16,y+h*0.58); ctx.closePath(); ctx.fill();
-  const n=String(pct), f=h*0.4, runs=[{t:n,size:f,font:FONT_NUM},{t:'%',size:f*0.54,font:FONT_NUM}];
+  const n=String(pct), f=h*0.37, runs=[{t:n,size:f,font:FONT_NUM},{t:'%',size:f*0.54,font:FONT_NUM}];
   const sc=fitText(ctx,runs,w*0.64); ctx.font=`${f*sc}px ${FONT_NUM}`; const w1=ctx.measureText(n).width; ctx.font=`${f*0.54*sc}px ${FONT_NUM}`; const w2=ctx.measureText('%').width;
-  drawRuns(ctx,runs,x+(w-w1-w2)/2,y+h*0.43,'left',sc,'#fff',0.045);
-  centerText(ctx,'OFF',h*0.21*Math.min(1,fitText(ctx,[{t:'OFF',size:h*0.21,font:FONT_NUM}],w*0.56)),x+w/2,y+h*0.665,'#fff',0.045);
+  drawRuns(ctx,runs,x+(w-w1-w2)/2,y+h*0.42,'left',sc,'#fff',0.012);
+  centerText(ctx,'OFF',h*0.21*Math.min(1,fitText(ctx,[{t:'OFF',size:h*0.21,font:FONT_NUM}],w*0.56)),x+w/2,y+h*0.655,'#fff',0.012);
 }
 async function renderItem(it, canvas, long){
   const tpl=it.tpl||'basic';
@@ -443,7 +443,7 @@ async function renderItem(it, canvas, long){
     B= isP(it) ? {x:W*0.05,y:hy,w:W*0.9,h:H-hy-H*0.035} : {x:W*0.04,y:hy,w:W*0.92,h:H-hy-H*0.05};
     ctx.fillStyle='#fff'; rr(ctx,B.x,B.y,B.w,B.h,Math.min(W,H)*0.035); ctx.fill();
   } else { noBg(ctx,W,H,'「행사 PPT 올리기」로 행사 배경을 먼저 등록해 주세요'); return canvas; }
-  await drawEventPOP(ctx,B,it);
+  if(isDbl(it)) await drawSpecialDouble(ctx,B,it); else await drawEventPOP(ctx,B,it);
   return canvas;
 }
 function noBg(ctx,W,H,msg){
@@ -535,13 +535,49 @@ function drawStackContent(ctx,B,it,W,H){
 // opts: badge 'arrow'(행사) | 'star'(기본), saleWon(판매가 ₩ 표시), regColor(정상가만 있을 때 색), saleColor
 const OPT_EVENT={badge:'arrow',saleWon:false,regColor:EV_RED,saleColor:EV_RED,font:FONT_KR};
 const OPT_BASIC={badge:'star',saleWon:true,regColor:'#000',saleColor:'#ff0000',font:FONT_KR,fixed:true};
+// 더블A4 행사 POP: 판매가 하나만 — 왼쪽 「초특가」 폭발 효과, 오른쪽을 판매가로 가득
+function burst(ctx,cx,cy,ro,ri,n,rot){
+  ctx.beginPath();
+  for(let i=0;i<n*2;i++){ const r=i%2?ri:ro*(i%4===0?1:0.9), a=rot-Math.PI/2+i*Math.PI/n; ctx[i?'lineTo':'moveTo'](cx+r*Math.cos(a),cy+r*Math.sin(a)); }
+  ctx.closePath();
+}
+function specialBadge(ctx,cx,cy,r){
+  const rot=-0.14;
+  ctx.save();
+  burst(ctx,cx+r*0.05,cy+r*0.06,r*1.04,r*0.8,18,rot); ctx.fillStyle=EV_RED; ctx.fill();          // 뒤쪽 빨간 그림자
+  burst(ctx,cx,cy,r,r*0.76,18,rot); ctx.fillStyle='#ffe100'; ctx.fill();
+  ctx.lineWidth=r*0.035; ctx.strokeStyle=EV_RED; ctx.lineJoin='miter'; ctx.stroke();
+  ctx.strokeStyle='rgba(230,0,18,.85)'; ctx.lineWidth=r*0.025; ctx.lineCap='round';             // 바깥 강조선
+  for(const a of [-2.55,-2.25,-1.95,0.55,0.85,1.15]){ ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*r*1.1,cy+Math.sin(a)*r*1.1); ctx.lineTo(cx+Math.cos(a)*r*1.28,cy+Math.sin(a)*r*1.28); ctx.stroke(); }
+  ctx.translate(cx,cy); ctx.rotate(rot);
+  let f=r*0.62; ctx.font=`900 ${f}px ${FONT_KR}`; const tw=ctx.measureText('초특가').width; if(tw>r*1.5){ f*=r*1.5/tw; ctx.font=`900 ${f}px ${FONT_KR}`; }
+  ctx.textAlign='center'; ctx.lineJoin='round';
+  ctx.lineWidth=f*0.22; ctx.strokeStyle='#fff'; ctx.strokeText('초특가',0,f*0.18);
+  ctx.fillStyle=EV_RED; ctx.fillText('초특가',0,f*0.18);
+  const g=r*0.17; ctx.font=`${g}px ${FONT_NUM}`; ctx.fillStyle='#000'; ctx.fillText('SPECIAL PRICE',0,f*0.18+g*1.35);
+  ctx.restore(); ctx.textAlign='left';
+}
+async function drawSpecialDouble(ctx,B,it){
+  // 사진 없음: 왼쪽 좁은 열에 「초특가」 + 상품 정보, 나머지 전부를 판매가로 채움
+  const pad=B.h*0.06, DESC=0.12, CAP=0.88, price=toNum(it.sale)||toNum(it.reg);
+  const r=B.h*0.33, cx=B.x+pad*0.5+r*1.12, cy=B.y+pad*0.4+r*1.1;
+  specialBadge(ctx,cx,cy,r);
+  const colL=B.x+pad*0.8, colR=cx+r*1.2, fs=B.h*0.05;
+  styleLines(ctx,it,colL,cy+r*1.12,fs,colR-colL,FONT_KR);
+  const left=colR+pad*0.3, right=B.x+B.w-pad*0.6, top=B.y+pad*0.5, bottom=B.y+B.h-pad*0.45;
+  const runs=[{t:'₩',size:100*0.75,font:FONT_KR,weight:700},{t:won(price),size:100,font:FONT_NUM}];
+  let w=0; runs.forEach(x=>{ ctx.font=`${x.weight||''} ${x.size}px ${x.font}`; w+=ctx.measureText(x.t).width; });
+  const sc=Math.min((right-left)/w, (bottom-top)/(100*(CAP+DESC)));     // 가로·세로 중 먼저 닿는 쪽까지 최대로 키움
+  const s=100*sc, base=Math.min(bottom-s*DESC,(top+bottom)/2+s*CAP/2);
+  drawRuns(ctx,runs,right,base,'right',sc,EV_RED);
+}
 async function drawEventPOP(ctx,B,it){ await layoutContent(ctx,B,it,OPT_EVENT); }
 function drawBadge(ctx,o,x,y,w,pct){                     // x,y = 왼쪽 위, w = 폭
   if(o.badge==='arrow'){ arrowBadge(ctx,x,y,w,w*1.3,pct); return w*1.3; }
   const ro=w/2, cx=x+ro, cy=y+ro, red='#ff0000';
   star(ctx,cx,cy,ro,ro*0.8,32); ctx.fillStyle='#f7ec15'; ctx.fill(); ctx.lineWidth=ro*0.04; ctx.strokeStyle=red; ctx.stroke();
-  const t=pct+'%', ps=fitText(ctx,[{t,size:ro*0.7,font:FONT_NUM}],ro*1.4);
-  centerText(ctx,t,ro*0.7*ps,cx,cy+ro*0.0,red,0.05); centerText(ctx,'OFF',ro*0.66,cx,cy+ro*0.62,red,0.05);
+  const t=pct+'%', ps=fitText(ctx,[{t,size:ro*0.66,font:FONT_NUM}],ro*1.35);
+  centerText(ctx,t,ro*0.66*ps,cx,cy-ro*0.01,red,0.015); centerText(ctx,'OFF',ro*0.62,cx,cy+ro*0.6,red,0.015);
   return w;
 }
 function styleLines(ctx,it,x,y,fs,maxW,font){
@@ -730,6 +766,7 @@ function schedulePreview(it, el){
 function updateHead(it, el){
   const b=el.querySelector('.kind'); if(!b) return;
   if(it.tpl==='sign'){ b.outerHTML='<span class="badge reg kind">고정 사인</span>'; return; }
+  if(it.tpl==='event' && isDbl(it)){ b.outerHTML='<span class="badge sale kind">초특가</span>'; return; }
   const d = discount(it);
   b.outerHTML = d ? `<span class="badge sale kind">세일 ${d}%</span>` : `<span class="badge reg kind">정상가</span>`;
 }
@@ -760,7 +797,7 @@ function renderList(){
   if(!items.length){ listEl.innerHTML = '<div class="empty">출력할 POP가 없습니다. 위에서 상품을 추가하세요.</div>'; return; }
   listEl.innerHTML = '';
   items.forEach((it,idx)=>{
-    const tpl=it.tpl||'basic', sign=tpl==='sign', ev=tpl==='event', photoOK=!sign;
+    const tpl=it.tpl||'basic', sign=tpl==='sign', ev=tpl==='event', photoOK=!sign && !(ev&&isDbl(it));   // 더블A4 초특가는 사진 없음
     const el = document.createElement('div'); el.className='item';
     let fields;
     if(sign){
@@ -777,8 +814,9 @@ function renderList(){
         <label>STYLE<input id="f_style_${it.id}" data-k="style" value="${esc(it.style)}"></label>
         <label>COLOR<input id="f_color_${it.id}" data-k="color" value="${esc(it.color)}"></label>
         <label class="wide">SIZE (직접 입력)<input id="f_size_${it.id}" data-k="size" value="${esc(it.size)}" placeholder="예: 230~280 · 비우면 손글씨용 빈칸"></label>
-        <label>정상가 (원)<input id="f_reg_${it.id}" data-k="reg" inputmode="numeric" value="${esc(it.reg)}"></label>
-        <label>판매가 (원)<input id="f_sale_${it.id}" data-k="sale" inputmode="numeric" value="${esc(it.sale)}" placeholder="세일 아니면 비움"></label>
+        ${ev&&isDbl(it)?`<label class="wide">판매가 (원) · 더블A4는 「초특가」 양식으로 판매가만 크게 나옵니다<input id="f_sale_${it.id}" data-k="sale" inputmode="numeric" value="${esc(it.sale||it.reg)}" placeholder="예: 59000"></label>`
+        :`<label>정상가 (원)<input id="f_reg_${it.id}" data-k="reg" inputmode="numeric" value="${esc(it.reg)}"></label>
+        <label>판매가 (원)<input id="f_sale_${it.id}" data-k="sale" inputmode="numeric" value="${esc(it.sale)}" placeholder="세일 아니면 비움"></label>`}
         ${photoOK?`<div class="wide photo" tabindex="0" data-photo aria-label="상품 사진 넣기">
           ${it.photo?`<img src="${it.photo}" alt="상품 사진">`:''}
           <span style="flex:1;min-width:180px">${it.photo?'<b style="color:var(--fg)">상품 사진이 들어갔습니다.</b>':'<b style="color:var(--fg)">상품 사진 (선택)</b>'}<br><span style="font-size:12px">① 「쇼핑몰에서 찾기」 → ② 사진 위에서 <b>Win+Shift+S</b>로 드래그 캡처 → ③ 이 칸을 누르고 <b>Ctrl+V</b>. 흰 여백은 자동으로 잘립니다.</span></span>
