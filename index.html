@@ -132,7 +132,7 @@ td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
 <div class="wrap">
   <header>
     <div>
-      <h1><b>POP</b> MAKER <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13-3</span></h1>
+      <h1><b>POP</b> MAKER <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13-4</span></h1>
       <p class="sub">ST·MS·SP·SE 채널 · 기본 상품 POP · 행사 상품 POP · 더블A4 / A4 · A5 가로·세로</p>
     </div>
     <div class="steps"><span class="chip on">① POP 종류 · 크기</span><span class="chip">② 상품 추가</span><span class="chip">③ PDF 저장 · 인쇄</span></div>
@@ -446,6 +446,31 @@ function noBg(ctx,W,H,msg){
   ctx.fillStyle='#d6121b'; ctx.fillRect(0,0,W,H); ctx.fillStyle='#fff'; ctx.textAlign='center';
   ctx.font=`700 ${Math.min(W,H)*0.05}px ${FONT_KR}`; ctx.fillText(msg,W/2,H/2,W*0.9); ctx.textAlign='left';
 }
+// 브랜드 배경에서 로고(위쪽)와 ABC-MART 글자(아래쪽) 위치 찾기 — 배경색과 다른 부분의 범위
+const logoMemo={};
+function logoBoxes(im,bi){
+  if(logoMemo[bi]) return logoMemo[bi];
+  const sw=400, sh=Math.round(sw*im.height/im.width), res={head:null,foot:null,headBg:sampleColor(im,0.985,0.2),footBg:sampleColor(im,0.985,0.95)};
+  try{
+    const c=document.createElement('canvas'); c.width=sw; c.height=sh; const x=c.getContext('2d'); x.drawImage(im,0,0,sw,sh);
+    const d=x.getImageData(0,0,sw,sh).data, m=Math.round(sw*0.012);
+    const find=(ya,yb)=>{
+      const bg=[0,1,2].map(ch=>{ const v=[]; for(let y=ya;y<yb;y++) for(let xx=sw-m-6;xx<sw-m;xx++) v.push(d[(y*sw+xx)*4+ch]); v.sort((a,b)=>a-b); return v[v.length>>1]; });
+      const col=new Int32Array(sw), row=new Int32Array(sh);
+      for(let y=ya;y<yb;y++) for(let xx=m;xx<sw-m;xx++){ const o=(y*sw+xx)*4;
+        if(Math.abs(d[o]-bg[0])+Math.abs(d[o+1]-bg[1])+Math.abs(d[o+2]-bg[2])>90){ col[xx]++; row[y]++; } }
+      let x0=-1,x1=-1,y0=-1,y1=-1;
+      for(let i=0;i<sw;i++) if(col[i]>=2){ if(x0<0)x0=i; x1=i+1; }
+      for(let i=0;i<sh;i++) if(row[i]>=2){ if(y0<0)y0=i; y1=i+1; }
+      if(x0<0||y0<0) return null;
+      const p=sw*0.008;   // 살짝 여유
+      return [Math.max(0,x0-p)/sw,Math.min(sw,x1+p)/sw,Math.max(0,y0-p)/sh,Math.min(sh,y1+p)/sh];
+    };
+    res.head=find(4,Math.round(sh*0.37)); res.foot=find(Math.round(sh*0.905),sh-4);
+    if(res.head && res.head[1]-res.head[0]>0.9) res.head=null;      // 무늬가 전체에 걸친 배경은 기존 방식
+  }catch(e){}
+  return (logoMemo[bi]=res);
+}
 // 기본 상품 POP 세로형·더블A4: 브랜드 배경의 로고 영역(무늬 포함)과 ABC-MART 띠를 잘라 배치
 async function basicLayout(ctx,W,H,it,im){
   const bi=it.brand??0, boxC='#'+(BRANDS[bi].box||'ffffff');
@@ -459,10 +484,20 @@ async function basicLayout(ctx,W,H,it,im){
     ctx.drawImage(im,0,im.height*0.88,im.width,im.height*0.12,W/4,H-fh,hw,fh);
     B={x:W*0.025,y:hh+H*0.01,w:W*0.95,h:H-fh-hh-H*0.02};
   } else {
-    const r=im.height/im.width, hh=W*0.445*r, fh=W*0.12*r;
-    ctx.drawImage(im,0,0,im.width,im.height*0.445,0,0,W,hh);
-    ctx.drawImage(im,0,im.height*0.88,im.width,im.height*0.12,0,H-fh,W,fh);
-    B={x:W*0.05,y:hh+H*0.012,w:W*0.9,h:H-fh-hh-H*0.026};
+    // 세로형: 로고만 찾아 잘라서 가운데 크게, ABC-MART 띠는 원본 가로 POP와 같은 실제 크기로
+    const L=logoBoxes(im,bi), iw=im.width, ih=im.height;
+    const hh=H*0.205, fh=H*0.062;
+    ctx.fillStyle=L.headBg; ctx.fillRect(0,0,W,H);
+    if(L.head){ const [x0,x1,y0,y1]=L.head, sw=(x1-x0)*iw, sh=(y1-y0)*ih;
+      const s=Math.min(W*0.66/sw, hh*0.72/sh), dw=sw*s, dh=sh*s;
+      ctx.drawImage(im,x0*iw,y0*ih,sw,sh,(W-dw)/2,(hh-dh)/2+H*0.006,dw,dh); }
+    else ctx.drawImage(im,0,0,iw,ih*0.445,0,0,W,W*0.445*ih/iw);
+    if(L.foot && L.foot[1]-L.foot[0]>0.4){ ctx.drawImage(im,0,ih*0.9,iw,ih*0.1,0,H-fh,W,fh); }   // 무늬 띠는 통째로
+    else { ctx.fillStyle=L.footBg; ctx.fillRect(0,H-fh,W,fh); }
+    if(L.foot && L.foot[1]-L.foot[0]<=0.4){ const [x0,x1,y0,y1]=L.foot, sw=(x1-x0)*iw, sh=(y1-y0)*ih;
+      const s=Math.min(W*Math.SQRT2/iw*1.1, fh*0.62/sh), dw=sw*s, dh=sh*s;
+      ctx.drawImage(im,x0*iw,y0*ih,sw,sh,(W-dw)/2,H-fh+(fh-dh)/2-H*0.004,dw,dh); }
+    B={x:W*0.05,y:hh,w:W*0.9,h:H-fh-hh-H*0.004};
   }
   ctx.fillStyle=boxC; rr(ctx,B.x,B.y,B.w,B.h,Math.min(W,H)*0.028); ctx.fill();
   await layoutContent(ctx,B,it,OPT_BASIC);
@@ -495,7 +530,7 @@ function drawStackContent(ctx,B,it,W,H){
 // 공통 배치 엔진 — 사진 유무에 따라 배치를 따로 계산
 // opts: badge 'arrow'(행사) | 'star'(기본), saleWon(판매가 ₩ 표시), regColor(정상가만 있을 때 색), saleColor
 const OPT_EVENT={badge:'arrow',saleWon:false,regColor:EV_RED,saleColor:EV_RED,font:FONT_NUM};
-const OPT_BASIC={badge:'star',saleWon:true,regColor:'#000',saleColor:'#ff0000',font:FONT_KR};
+const OPT_BASIC={badge:'star',saleWon:true,regColor:'#000',saleColor:'#ff0000',font:FONT_KR,fixed:true};
 async function drawEventPOP(ctx,B,it){ await layoutContent(ctx,B,it,OPT_EVENT); }
 function drawBadge(ctx,o,x,y,w,pct){                     // x,y = 왼쪽 위, w = 폭
   if(o.badge==='arrow'){ arrowBadge(ctx,x,y,w,w*1.3,pct); return w*1.3; }
@@ -533,19 +568,19 @@ function layoutTall(ctx,B,it,o,im,sale,pct){
   const blk=k=>{ const fs=B.w*0.04*k, fo=sale?B.w*0.105*k:0, bw=sale?B.w*0.29*Math.min(k,1.3):0, bh=o.badge==='arrow'?bw*1.3:bw*0.85;
     return {fs,fo,bw,h:Math.max(fs*1.32*3+(sale?fo*1.25:0), bh)}; };
   const photoMin = im ? B.h*0.27 : 0;                       // 사진은 남는 공간 전부(최소 27%)
-  let b=blk(im?0.8:1);
+  let b=blk(o.fixed?1.3:(im?0.8:1));                       // 기본 POP: 사진 유무와 상관없이 글자 크기 고정
   let free=B.h-pad*2-b.h-ss*0.8-(im?photoMin+pad*0.5:0);
-  if(!im && free>0){ const k=Math.min(1.75,1+free/(b.h*1.7)); b=blk(k); free=B.h-pad*2-b.h-ss*0.8; }
+  if(!o.fixed && !im && free>0){ const k=Math.min(1.75,1+free/(b.h*1.7)); b=blk(k); free=B.h-pad*2-b.h-ss*0.8; }
   if(free<0){ ss*=Math.max(0.6,1+free/(ss*0.8)); free=0; }
   const y0=B.y+pad;
   styleLines(ctx,it,B.x+pad,y0,b.fs,sale?iw-b.bw-pad*0.4:iw*0.95,o.font);
   if(sale){
-    const bx=B.x+B.w-pad-b.bw, by=o.badge==='star'?B.y-b.bw*0.22:y0;
+    const bx=B.x+B.w-pad-b.bw, by=o.badge==='star'?B.y-b.bw*(o.fixed?0.06:0.22):y0;
     drawBadge(ctx,o,bx,by,b.bw,pct);
     oldPrice(ctx,it,B.x+pad*1.1,y0+b.fs*1.32*3+b.fo*1.05,b.fo,iw-b.bw-pad*0.4);
   }
   // 사진 없음: 판매가를 박스 아래에 붙임 / 사진 있음: 판매가 바로 아래에 사진
-  const base = im ? y0+b.h+pad*0.4+ss*0.8 : B.y+B.h-pad;
+  const base = im ? y0+b.h+pad*0.4+ss*0.8 : (o.fixed ? Math.min(B.y+B.h-pad, (y0+b.h+B.y+B.h)/2+ss*0.4) : B.y+B.h-pad);
   drawRuns(ctx,priceRuns(it,o,ss),B.x+B.w-pad,base,'right',1,sale?o.saleColor:o.regColor);
   if(im){ const top=base+pad*0.6, h=B.y+B.h-pad*0.6-top; if(h>B.h*0.12) contain(ctx,im,B.x+pad,top,iw,h); }
 }
