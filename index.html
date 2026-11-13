@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>쌓아팔기 POP 메이커</title>
+<title>POP MAKER</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
@@ -98,7 +98,7 @@ td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
 .evimg select{font-size:12px;padding:4px}
 .signs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .signbtn{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:6px;cursor:pointer;display:grid;gap:4px;font:inherit;font-size:12px;color:var(--fg);justify-items:center}
-.signbtn img{width:150px;height:70px;object-fit:contain;background:#222;border-radius:3px}
+.signbtn img{width:200px;height:110px;object-fit:contain;background:#222;border-radius:3px}
 .signbtn:hover{border-color:var(--fg)}
 .setrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .setrow .lab{font-size:13px;font-weight:700;min-width:34px}
@@ -132,7 +132,7 @@ td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
 <div class="wrap">
   <header>
     <div>
-      <h1>쌓아팔기 <b>POP</b> 메이커 <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13</span></h1>
+      <h1><b>POP</b> MAKER <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13-3</span></h1>
       <p class="sub">ST·MS·SP·SE 채널 · 기본 상품 POP · 행사 상품 POP · 더블A4 / A4 · A5 가로·세로</p>
     </div>
     <div class="steps"><span class="chip on">① POP 종류 · 크기</span><span class="chip">② 상품 추가</span><span class="chip">③ PDF 저장 · 인쇄</span></div>
@@ -141,12 +141,12 @@ td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
   <section class="card" aria-labelledby="h-set">
     <h2 id="h-set"><span class="n">1</span>POP 종류 · 크기 <span class="hint" style="font-weight:400">여기서 고른 설정이 새로 추가하는 POP에 적용됩니다</span></h2>
     <div id="settings" style="display:grid;gap:10px"></div>
-    <input type="file" id="pptFile" accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+    <input type="file" id="pptFile" multiple accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
     <div id="evPanel" hidden>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>행사 관리</b><button type="button" class="btn sm" id="closeEv">닫기</button></div>
       <div class="drop" id="pptDrop" tabindex="0" role="button" aria-label="행사 PPT 올리기">
-        <strong>행사 PPT 올리기 (.ppt · .pptx)</strong>
-        <span>본사에서 받은 행사 POP 파일을 그대로 올리면 배경과 고정 사인(타이틀·최대 할인 등)을 자동으로 나눕니다</span>
+        <strong>새 행사 등록: PPT 올리기 (.ppt · .pptx, 여러 개 한 번에 가능)</strong>
+        <span>같은 행사의 파일(예: 03 세로·A5 + 04 더블A4)은 <b>한꺼번에 선택</b>하면 한 행사로 묶여, 크기마다 맞는 배경이 자동으로 쓰입니다</span>
         <span style="font-size:12px">이 PC에만 저장됩니다 · 잘못 나뉜 이미지는 아래 「용도」에서 바꿀 수 있습니다</span>
       </div>
       <div id="evList" style="display:grid;gap:10px"></div>
@@ -159,6 +159,7 @@ td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
       <div class="seg" role="group" aria-label="입력 방식">
         <button id="tabXls" aria-pressed="true">엑셀 가격표</button>
         <button id="tabManual" aria-pressed="false">스타일 코드 입력</button>
+        <button id="tabSign" aria-pressed="false">고정 사인</button>
       </div>
     </div>
 
@@ -183,6 +184,11 @@ td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
         </div>
         <div class="hint" id="resultHint"></div>
       </div>
+    </div>
+
+    <div id="paneSign" hidden style="display:grid;gap:10px">
+      <p class="hint" style="margin:0">행사 PPT에서 꺼낸 타이틀·「최대 ○○% 할인」 같은 고정 사인입니다. 누르면 출력 목록에 추가되고, PDF 저장·바로 인쇄로 그대로 출력됩니다.</p>
+      <div id="signPane" class="signs"></div>
     </div>
 
     <div id="paneManual" hidden style="display:grid;gap:10px">
@@ -370,7 +376,7 @@ const imgMemo = new Map();
 function loadImg(url){
   if(!url) return Promise.resolve(null);
   if(imgMemo.has(url)) return imgMemo.get(url);
-  const im=new Image(); im.src=url; const p=im.decode().then(()=>im).catch(()=>im); imgMemo.set(url,p); return p;
+  const im=new Image(); im.src=url; const p=im.decode().then(()=>(im.naturalWidth?im:null)).catch(()=>null); imgMemo.set(url,p); return p;
 }
 function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function cover(ctx,im,x,y,w,h,ay){ const r=Math.max(w/im.width,h/im.height), sw=w/r, sh=h/r; ctx.drawImage(im,(im.width-sw)/2,(im.height-sh)*(ay??0.5),sw,sh,x,y,w,h); }
@@ -396,7 +402,7 @@ function arrowBadge(ctx,x,y,w,h,pct){       // 빨간 아래 화살표 + ○○%
 }
 async function renderItem(it, canvas, long){
   const tpl=it.tpl||'basic';
-  if(tpl==='basic' && !isDbl(it) && !isP(it)) return renderPOP(it, canvas, long);   // 원본 PPT 좌표 그대로
+  if(tpl==='basic' && !isDbl(it) && !isP(it) && !it.photo) return renderPOP(it, canvas, long);   // 원본 PPT 좌표 그대로
   await ensureFonts();
   const [W,H]=pageWH(it,long); canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
@@ -405,21 +411,32 @@ async function renderItem(it, canvas, long){
     if(im) ctx.drawImage(im,0,0,W,H); else noBg(ctx,W,H,'사인 이미지를 찾을 수 없습니다 (행사가 삭제됨)');
     return canvas;
   }
-  if(tpl==='basic'){ basicLayout(ctx,W,H,it,await brandImg(it.brand??0)); return canvas; }
+  if(tpl==='basic'){ await basicLayout(ctx,W,H,it,await brandImg(it.brand??0)); return canvas; }
   // 행사 상품 POP: 같은 비율의 PPT 배경이 있으면 그대로, 없으면 다른 배경을 맞춰 깔고 흰 박스를 새로 그림
   const ev=evById(it.ev), bgs=evBgs(ev), exact=bgs.find(b=>b.fmt===fmtKey(it));
   let B;
   if(exact){
-    const im=await loadImg(exact.data); ctx.drawImage(im,0,0,W,H);
+    const im=await loadImg(exact.data); if(im) ctx.drawImage(im,0,0,W,H);
     B={x:W*exact.box[0],y:H*exact.box[1],w:W*(exact.box[2]-exact.box[0]),h:H*(exact.box[3]-exact.box[1])};
   } else if(bgs.length){
-    // 맞는 배경이 없을 때: 가로는 더블A4 배경의 왼쪽 절반, 그 외에는 가장 비슷한 배경의 윗부분(타이틀)을 사용
-    const dbg=bgs.find(b=>b.fmt==='D'), useHalf = fmtKey(it)==='L' && dbg, src=useHalf?dbg:(bgs.find(b=>b.fmt==='L')||bgs[0]);
-    const im=await loadImg(src.data), top=src.box[1];
-    if(useHalf) ctx.drawImage(im,0,0,im.width/2,im.height,0,0,W,H); else cover(ctx,im,0,0,W,H,0);
-    const hy = useHalf ? H*top : Math.min(H*0.32, im.height*top*Math.max(W/im.width,H/im.height));
-    ctx.fillStyle=sampleColor(im,0.006,Math.min(0.98,top+0.05)); ctx.fillRect(0,hy-H*0.005,W,H-hy+H*0.005);
-    B= isP(it) ? {x:W*0.06,y:hy+H*0.01,w:W*0.88,h:H-hy-H*0.06} : {x:W*0.05,y:hy+H*0.01,w:W*0.9,h:H-hy-H*0.07};
+    // 맞는 크기의 배경이 없을 때: 다른 배경의 타이틀(박스 위쪽)을 자르지 않고 통째로 축소해 배치
+    const want=fmtKey(it), dbg=bgs.find(b=>b.fmt==='D'), lbg=bgs.find(b=>b.fmt==='L');
+    const src = want==='L' ? (dbg||bgs[0]) : want==='P' ? (dbg||lbg||bgs[0]) : (lbg||bgs[0]);
+    const im=await loadImg(src.data); if(!im){ noBg(ctx,W,H,'행사 배경 이미지를 읽지 못했습니다'); return canvas; }
+    const top=src.box[1], base=sampleColor(im,0.004,Math.min(0.98,top+0.04));
+    ctx.fillStyle=base; ctx.fillRect(0,0,W,H);
+    let hy;
+    if(want==='L' && src.fmt==='D'){ ctx.drawImage(im,0,0,im.width/2,im.height,0,0,W,H); hy=H*top; ctx.fillStyle=base; ctx.fillRect(0,hy-H*0.005,W,H); }
+    else {
+      const parts=(want==='P' && src.fmt==='D')?2:1;          // 더블A4 타이틀은 왼쪽·오른쪽 절반을 위아래 두 줄로
+      const pw=im.width/parts, ph=im.height*top, ratio=ph/pw;
+      let w=W*0.96, h=w*ratio; const maxH=H*(want==='P'?0.34:0.3)/parts;
+      if(h>maxH){ h=maxH; w=h/ratio; }
+      let y=H*0.012;
+      for(let k=0;k<parts;k++){ ctx.drawImage(im,k*pw,0,pw,ph,(W-w)/2,y,w,h); y+=h; }
+      hy=y+H*0.008;
+    }
+    B= isP(it) ? {x:W*0.05,y:hy,w:W*0.9,h:H-hy-H*0.035} : {x:W*0.04,y:hy,w:W*0.92,h:H-hy-H*0.05};
     ctx.fillStyle='#fff'; rr(ctx,B.x,B.y,B.w,B.h,Math.min(W,H)*0.035); ctx.fill();
   } else { noBg(ctx,W,H,'「행사 PPT 올리기」로 행사 배경을 먼저 등록해 주세요'); return canvas; }
   await drawEventPOP(ctx,B,it);
@@ -430,7 +447,7 @@ function noBg(ctx,W,H,msg){
   ctx.font=`700 ${Math.min(W,H)*0.05}px ${FONT_KR}`; ctx.fillText(msg,W/2,H/2,W*0.9); ctx.textAlign='left';
 }
 // 기본 상품 POP 세로형·더블A4: 브랜드 배경의 로고 영역(무늬 포함)과 ABC-MART 띠를 잘라 배치
-function basicLayout(ctx,W,H,it,im){
+async function basicLayout(ctx,W,H,it,im){
   const bi=it.brand??0, boxC='#'+(BRANDS[bi].box||'ffffff');
   ctx.fillStyle=sampleColor(im,0.012,0.62); ctx.fillRect(0,0,W,H);
   let B;
@@ -448,7 +465,7 @@ function basicLayout(ctx,W,H,it,im){
     B={x:W*0.05,y:hh+H*0.012,w:W*0.9,h:H-fh-hh-H*0.026};
   }
   ctx.fillStyle=boxC; rr(ctx,B.x,B.y,B.w,B.h,Math.min(W,H)*0.028); ctx.fill();
-  drawStackContent(ctx,B,it,W,H);
+  await layoutContent(ctx,B,it,OPT_BASIC);
 }
 // 기본 상품 POP 내용 (STYLE·COLOR·SIZE + 가격, 세일이면 노란 별·취소선)
 function drawStackContent(ctx,B,it,W,H){
@@ -475,31 +492,80 @@ function drawStackContent(ctx,B,it,W,H){
   centerText(ctx,pct,ro*0.62*ps,cx,cy-ro*0.02,red); centerText(ctx,'OFF',ro*0.62,cx,cy+ro*0.58,red);
 }
 // 행사 상품 POP 내용: STYLE·COLOR·SIZE + 할인율 화살표 + 취소선 정상가 + 판매가, 사진은 넣었을 때만
-async function drawEventPOP(ctx,B,it){
-  const ph=it.photo, P=isP(it);
-  let A=B;
-  if(ph){
-    const im=await loadImg(ph), m=Math.min(B.w,B.h)*0.05;
-    if(P){ const h=B.h*0.33; A={x:B.x,y:B.y,w:B.w,h:B.h-h}; if(im) contain(ctx,im,B.x+m,B.y+B.h-h,B.w-m*2,h-m); }
-    else { const w=B.w*(isDbl(it)?0.34:0.4); A={x:B.x,y:B.y,w:B.w-w,h:B.h}; if(im) contain(ctx,im,B.x+B.w-w,B.y+m,w-m,B.h-m*2); }
+// 공통 배치 엔진 — 사진 유무에 따라 배치를 따로 계산
+// opts: badge 'arrow'(행사) | 'star'(기본), saleWon(판매가 ₩ 표시), regColor(정상가만 있을 때 색), saleColor
+const OPT_EVENT={badge:'arrow',saleWon:false,regColor:EV_RED,saleColor:EV_RED,font:FONT_NUM};
+const OPT_BASIC={badge:'star',saleWon:true,regColor:'#000',saleColor:'#ff0000',font:FONT_KR};
+async function drawEventPOP(ctx,B,it){ await layoutContent(ctx,B,it,OPT_EVENT); }
+function drawBadge(ctx,o,x,y,w,pct){                     // x,y = 왼쪽 위, w = 폭
+  if(o.badge==='arrow'){ arrowBadge(ctx,x,y,w,w*1.3,pct); return w*1.3; }
+  const ro=w/2, cx=x+ro, cy=y+ro, red='#ff0000';
+  star(ctx,cx,cy,ro,ro*0.8,32); ctx.fillStyle='#f7ec15'; ctx.fill(); ctx.lineWidth=ro*0.04; ctx.strokeStyle=red; ctx.stroke();
+  const t=pct+'%', ps=fitText(ctx,[{t,size:ro*0.62,font:FONT_NUM}],ro*1.35);
+  centerText(ctx,t,ro*0.62*ps,cx,cy-ro*0.02,red); centerText(ctx,'OFF',ro*0.62,cx,cy+ro*0.58,red);
+  return w;
+}
+function styleLines(ctx,it,x,y,fs,maxW,font){
+  const kr=font===FONT_KR;
+  [['STYLE - ',it.style],['COLOR - ',it.color],['SIZE - ',it.size]].forEach(([l,v],i)=>{
+    const r = kr ? [{t:l,size:fs,font:FONT_KR},{t:String(v||''),size:fs,font:FONT_KR,weight:700}] : [{t:l.replace('-','–')+String(v||''),size:fs,font:FONT_NUM}];
+    drawRuns(ctx,r,x,y+fs+i*fs*1.32,'left',fitText(ctx,r,maxW),'#000'); });
+}
+function priceRuns(it,o,s){
+  const sale=isSale(it), n=won(sale?it.sale:it.reg);
+  return (sale&&!o.saleWon) ? [{t:n,size:s,font:FONT_NUM}] : [{t:'₩',size:s*0.62,font:FONT_KR,weight:700},{t:n,size:s,font:FONT_NUM}];
+}
+function oldPrice(ctx,it,x,base,fo,maxW){
+  const r=[{t:'₩',size:fo*0.45,font:FONT_KR,weight:700},{t:won(it.reg),size:fo,font:FONT_NUM}];
+  const ob=drawRuns(ctx,r,x,base,'left',fitText(ctx,r,maxW),'#000');
+  strikeLine(ctx,x-fo*0.12,ob.right+fo*0.25,base-fo*0.38,Math.max(3,fo*0.055),EV_RED);
+}
+async function layoutContent(ctx,B,it,o){
+  const im=it.photo?await loadImg(it.photo):null, sale=isSale(it), pct=discount(it);
+  const tall = B.h >= B.w*0.85;
+  if(tall) return layoutTall(ctx,B,it,o,im,sale,pct);
+  return layoutWide(ctx,B,it,o,im,sale,pct);
+}
+// 세로형 — 사진 없음: 위쪽 글자를 키워 박스를 채움 / 사진 있음: 아래 35%를 사진에 할당
+function layoutTall(ctx,B,it,o,im,sale,pct){
+  const pad=B.w*0.055, iw=B.w-pad*2;
+  let ss=B.w*0.5; ss*=fitText(ctx,priceRuns(it,o,ss),iw);
+  const blk=k=>{ const fs=B.w*0.04*k, fo=sale?B.w*0.105*k:0, bw=sale?B.w*0.29*Math.min(k,1.3):0, bh=o.badge==='arrow'?bw*1.3:bw*0.85;
+    return {fs,fo,bw,h:Math.max(fs*1.32*3+(sale?fo*1.25:0), bh)}; };
+  const photoMin = im ? B.h*0.27 : 0;                       // 사진은 남는 공간 전부(최소 27%)
+  let b=blk(im?0.8:1);
+  let free=B.h-pad*2-b.h-ss*0.8-(im?photoMin+pad*0.5:0);
+  if(!im && free>0){ const k=Math.min(1.75,1+free/(b.h*1.7)); b=blk(k); free=B.h-pad*2-b.h-ss*0.8; }
+  if(free<0){ ss*=Math.max(0.6,1+free/(ss*0.8)); free=0; }
+  const y0=B.y+pad;
+  styleLines(ctx,it,B.x+pad,y0,b.fs,sale?iw-b.bw-pad*0.4:iw*0.95,o.font);
+  if(sale){
+    const bx=B.x+B.w-pad-b.bw, by=o.badge==='star'?B.y-b.bw*0.22:y0;
+    drawBadge(ctx,o,bx,by,b.bw,pct);
+    oldPrice(ctx,it,B.x+pad*1.1,y0+b.fs*1.32*3+b.fo*1.05,b.fo,iw-b.bw-pad*0.4);
   }
-  const sale=isSale(it), pad=Math.min(A.w,A.h)*0.06, fs=Math.min(Math.max(A.h*0.045,A.w*0.03),A.h*0.065);
-  [['STYLE – ',it.style],['COLOR – ',it.color],['SIZE – ',it.size]].forEach(([l,v],i)=>{
-    const r=[{t:l+String(v||''),size:fs,font:FONT_NUM}]; drawRuns(ctx,r,A.x+pad,A.y+pad+fs+i*fs*1.3,'left',fitText(ctx,r,A.w*0.55),'#000'); });
+  // 사진 없음: 판매가를 박스 아래에 붙임 / 사진 있음: 판매가 바로 아래에 사진
+  const base = im ? y0+b.h+pad*0.4+ss*0.8 : B.y+B.h-pad;
+  drawRuns(ctx,priceRuns(it,o,ss),B.x+B.w-pad,base,'right',1,sale?o.saleColor:o.regColor);
+  if(im){ const top=base+pad*0.6, h=B.y+B.h-pad*0.6-top; if(h>B.h*0.12) contain(ctx,im,B.x+pad,top,iw,h); }
+}
+// 가로·더블A4형 — 사진 없음: 판매가를 넓게 / 사진 있음: 오른쪽 열을 사진에 할당
+function layoutWide(ctx,B,it,o,im,sale,pct){
+  let A=B;
+  if(im){ const w=B.w*(isDbl(it)?0.33:0.42), m=Math.min(B.w,B.h)*0.06; A={x:B.x,y:B.y,w:B.w-w,h:B.h}; contain(ctx,im,B.x+B.w-w,B.y+m,w-m,B.h-m*2); }
+  const pad=Math.min(A.w,A.h)*0.065, fs=Math.min(Math.max(A.h*0.055,A.w*0.03),A.h*0.075);
+  styleLines(ctx,it,A.x+pad,A.y+pad,fs,A.w*0.55,o.font);
   const right=A.x+A.w-pad, base=A.y+A.h-pad*0.8;
   if(!sale){
-    const r=[{t:'₩',size:A.h*0.3,font:FONT_KR,weight:700},{t:won(it.reg),size:A.h*0.5,font:FONT_NUM}];
-    drawRuns(ctx,r,right,base,'right',fitText(ctx,r,A.w-pad*2),EV_RED); return;
+    const r=priceRuns(it,o,A.h*0.56); drawRuns(ctx,r,right,base,'right',fitText(ctx,r,A.w-pad*2),o.regColor); return;
   }
-  const aw=Math.min(A.w*0.3,A.h*0.4), ah=aw*1.3, arrowBottom=A.y+pad*0.3+ah;
-  arrowBadge(ctx,right-aw,A.y+pad*0.3,aw,ah,discount(it));
-  const fo=Math.min(A.h*0.15,A.w*0.09), oy=A.y+pad+fs*4.2+fo;
-  const or=[{t:'₩',size:fo*0.42,font:FONT_KR,weight:700},{t:won(it.reg),size:fo,font:FONT_NUM}];
-  const ob=drawRuns(ctx,or,A.x+pad,oy,'left',fitText(ctx,or,right-aw-pad-(A.x+pad)),'#000');
-  strikeLine(ctx,A.x+pad*0.7,ob.right+pad*0.6,oy-fo*0.38,Math.max(3,fo*0.05),EV_RED);
-  const ss=Math.min(A.h*0.6,(base-oy-pad*0.5)/0.82), sr=[{t:won(it.sale),size:ss,font:FONT_NUM}];
-  const sRight = (base-ss*0.8 < arrowBottom) ? right-aw-pad*0.5 : right;     // 판매가가 화살표와 겹치지 않게
-  drawRuns(ctx,sr,sRight,base,'right',fitText(ctx,sr,sRight-(A.x+pad)),EV_RED);
+  const bw=o.badge==='arrow'?Math.min(A.w*0.26,A.h*0.42):Math.min(A.w*0.24,A.h*0.5), by=o.badge==='star'?A.y-bw*0.22:A.y+pad*0.3;
+  const bh=drawBadge(ctx,o,right-bw,by,bw,pct), badgeBottom=by+bh;
+  const fo=Math.min(A.h*0.17,A.w*0.1), oy=A.y+pad+fs*1.32*3+fo*1.05;
+  oldPrice(ctx,it,A.x+pad*1.1,oy,fo,right-bw-pad-(A.x+pad));
+  const ss=Math.min(A.h*0.64,(base-oy-pad*0.3)/0.8), sr=priceRuns(it,o,ss);
+  const sRight=(base-ss*0.8<badgeBottom)?right-bw-pad*0.4:right;
+  drawRuns(ctx,sr,sRight,base,'right',fitText(ctx,sr,sRight-(A.x+pad)),o.saleColor);
 }
 // 출력 용지 구성: 더블A4는 A4 가로 2장, A4는 1장 1개, A5는 같은 방향끼리 2개를 A4 1장에 (절취선)
 function buildSheets(list){
@@ -644,7 +710,7 @@ function renderList(){
   if(!items.length){ listEl.innerHTML = '<div class="empty">출력할 POP가 없습니다. 위에서 상품을 추가하세요.</div>'; return; }
   listEl.innerHTML = '';
   items.forEach((it,idx)=>{
-    const tpl=it.tpl||'basic', sign=tpl==='sign', ev=tpl==='event';
+    const tpl=it.tpl||'basic', sign=tpl==='sign', ev=tpl==='event', photoOK=!sign;
     const el = document.createElement('div'); el.className='item';
     let fields;
     if(sign){
@@ -655,7 +721,7 @@ function renderList(){
     } else {
       fields=`<div class="fields">
         <label>탭<select id="f_tpl_${it.id}" data-k="tpl">${opt(TPLS,tpl)}</select></label>
-        <label>크기 · 방향<select id="f_fmt_${it.id}" data-k="fmt">${opt(FMT_ALL,fmtVal(it))}</select></label>
+        <label>크기 · 방향<select id="f_fmt_${it.id}" data-k="fmt">${opt(tpl==='basic'?FMT_ALL.slice(1):FMT_ALL,fmtVal(it))}</select></label>
         ${ev?`<label class="wide">행사<select id="f_ev_${it.id}" data-k="ev">${evOptions(it.ev)}</select></label>`
             :`<label class="wide">브랜드 배경<select id="f_brand_${it.id}" data-k="brand">${brandOptions}</select></label>`}
         <label>STYLE<input id="f_style_${it.id}" data-k="style" value="${esc(it.style)}"></label>
@@ -663,7 +729,7 @@ function renderList(){
         <label class="wide">SIZE (직접 입력)<input id="f_size_${it.id}" data-k="size" value="${esc(it.size)}" placeholder="예: 230~280 · 비우면 손글씨용 빈칸"></label>
         <label>정상가 (원)<input id="f_reg_${it.id}" data-k="reg" inputmode="numeric" value="${esc(it.reg)}"></label>
         <label>판매가 (원)<input id="f_sale_${it.id}" data-k="sale" inputmode="numeric" value="${esc(it.sale)}" placeholder="세일 아니면 비움"></label>
-        ${ev?`<div class="wide photo" tabindex="0" data-photo aria-label="상품 사진 넣기">
+        ${photoOK?`<div class="wide photo" tabindex="0" data-photo aria-label="상품 사진 넣기">
           ${it.photo?`<img src="${it.photo}" alt="상품 사진">`:''}
           <span style="flex:1;min-width:180px">${it.photo?'<b style="color:var(--fg)">상품 사진이 들어갔습니다.</b>':'<b style="color:var(--fg)">상품 사진 (선택)</b>'}<br><span style="font-size:12px">① 「쇼핑몰에서 찾기」 → ② 사진 위에서 <b>Win+Shift+S</b>로 드래그 캡처 → ③ 이 칸을 누르고 <b>Ctrl+V</b>. 흰 여백은 자동으로 잘립니다.</span></span>
           <input type="file" accept="image/*" hidden data-file><a class="btn sm primary" data-mall href="${mallURL(it.style)}" target="_blank" rel="noopener">쇼핑몰에서 찾기</a><button type="button" class="btn sm" data-pick>파일 선택</button>${it.photo?'<button type="button" class="btn sm" data-clear>사진 빼기</button>':''}
@@ -680,6 +746,7 @@ function renderList(){
         const k=inp.dataset.k; it.example=false;
         if(k==='fmt') setFmt(it,inp.value); else it[k] = k==='brand'?Number(inp.value):inp.value;
         if(k==='tpl' && it.tpl==='event' && !evById(it.ev)) it.ev=EVENTS[0]?.id||'';
+        if(k==='tpl' && it.tpl==='basic' && isDbl(it)){ it.paper='A4'; it.orient='L'; }
         save();
         if(k==='style'){ const a=el.querySelector('[data-mall]'); if(a) a.href=mallURL(it.style); }
         if(k==='tpl'||k==='fmt'||k==='ev'){ renderList(); return; }
@@ -711,30 +778,41 @@ let DEF={tpl:'basic',paper:'A4',orient:'L',ev:''};
 try{ const v=JSON.parse(localStorage.getItem('popmaker_def')||'null'); if(v) DEF={...DEF,...v}; }catch(e){}
 if(!['basic','event'].includes(DEF.tpl)) DEF.tpl='basic';
 if(!['D','A4','A5'].includes(DEF.paper)) DEF.paper='A4';
+if(DEF.tpl==='basic' && DEF.paper==='D'){ DEF.paper='A4'; DEF.orient='L'; }
 function saveDef(){ try{ localStorage.setItem('popmaker_def',JSON.stringify(DEF)); }catch(e){} }
 function segHTML(name,pairs,v,cls){ return `<div class="seg${cls?' '+cls:''}" role="group" aria-label="${name}">${pairs.map(([k,l])=>`<button type="button" data-set="${name}" data-v="${k}" aria-pressed="${k===v}">${l}</button>`).join('')}</div>`; }
 function renderSettings(){
   const box=document.getElementById('settings'), ev=DEF.tpl==='event', cur=evById(DEF.ev);
   box.innerHTML=`
     ${segHTML('tpl',TPLS,DEF.tpl,'big')}
-    <div class="setrow"><span class="lab">크기</span>${segHTML('paper',[['D','더블A4 (가로 2장)'],['A4','A4'],['A5','A5 (A4에 2개)']],DEF.paper)}
+    <div class="setrow"><span class="lab">크기</span>${segHTML('paper',(ev?[['D','더블A4 (가로 2장)']]:[]).concat([['A4','A4'],['A5','A5 (A4에 2개)']]),DEF.paper)}
       ${DEF.paper==='D'?'':`<span class="lab" style="margin-left:6px">방향</span>${segHTML('orient',[['L','가로'],['P','세로']],DEF.orient)}`}</div>
     ${ev?`<div class="setrow"><span class="lab">행사</span><select id="defEv" aria-label="행사 선택">${evOptions(DEF.ev)}</select>
-      <button type="button" class="btn sm primary" id="upPpt">행사 PPT 올리기</button><button type="button" class="btn sm" id="openEv">행사 관리</button></div>
-      ${cur?`<div class="hint">배경: ${['D','L','P'].map(f=>evBgs(cur).some(b=>b.fmt===f)?`✓ ${f==='D'?'더블A4':f==='L'?'가로':'세로'}`:`– ${f==='D'?'더블A4':f==='L'?'가로':'세로'}(다른 배경으로 대체)`).join(' · ')}</div>
-        ${evSigns(cur).length?`<div class="signs"><span class="lab">고정 사인</span>${evSigns(cur).map(s=>`<button type="button" class="signbtn" data-addsign="${s.id}"><img src="${s.data}" alt=""><span>${s.fmt==='D'?'더블A4':s.fmt==='L'?'가로':'세로'} · 목록에 추가</span></button>`).join('')}</div>`:''}`
-        :'<div class="hint">행사 POP를 만들려면 본사에서 받은 행사 PPT(.ppt, .pptx)를 먼저 올려 주세요.</div>'}`:''}`;
+      ${cur?`<button type="button" class="btn sm primary" id="addPpt">이 행사에 PPT 추가</button>`:''}<button type="button" class="btn sm${cur?'':' primary'}" id="upPpt">새 행사 PPT 올리기</button><button type="button" class="btn sm" id="openEv">행사 관리</button></div>
+      ${cur?`<div class="hint">배경: ${['D','L','P'].map(f=>evBgs(cur).some(b=>b.fmt===f)?`✓ ${f==='D'?'더블A4':f==='L'?'가로':'세로'}`:`– ${f==='D'?'더블A4':f==='L'?'가로':'세로'}(다른 배경으로 대체)`).join(' · ')}${['D','L','P'].some(f=>!evBgs(cur).some(b=>b.fmt===f))?' · 빠진 크기가 있으면 「이 행사에 PPT 추가」로 같은 행사의 다른 파일을 넣으세요':''}</div>
+        ${evSigns(cur).length?`<div class="hint">고정 사인 ${evSigns(cur).length}개 → 「② 상품 추가 → 고정 사인」 탭에서 출력</div>`:''}`
+        :'<div class="hint">행사 POP를 만들려면 본사에서 받은 행사 PPT(.ppt, .pptx)를 올려 주세요. 같은 행사 파일 여러 개는 한꺼번에 선택하세요.</div>'}`:''}`;
   box.querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{
     DEF[b.dataset.set]=b.dataset.v;
+    if(DEF.tpl==='basic' && DEF.paper==='D'){ DEF.paper='A4'; DEF.orient='L'; }
     if(DEF.tpl==='event' && !evById(DEF.ev)) DEF.ev=EVENTS[0]?.id||'';
     saveDef(); renderSettings();
   });
   const sel=document.getElementById('defEv'); if(sel) sel.onchange=()=>{ DEF.ev=sel.value; saveDef(); renderSettings(); };
-  const up=document.getElementById('upPpt'); if(up) up.onclick=()=>document.getElementById('pptFile').click();
+  const up=document.getElementById('upPpt'); if(up) up.onclick=()=>pickPpt(null);
+  const ap=document.getElementById('addPpt'); if(ap) ap.onclick=()=>pickPpt(DEF.ev);
   const oe=document.getElementById('openEv'); if(oe) oe.onclick=()=>openEvPanel(document.getElementById('evPanel').hidden);
-  box.querySelectorAll('[data-addsign]').forEach(b=>b.onclick=()=>{
-    const s=evImg(cur,b.dataset.addsign); addItem({tpl:'sign',ev:cur.id,sign:s.id,paper:s.fmt==='D'?'D':'A4',orient:s.fmt==='P'?'P':'L'}); });
   document.getElementById('m_brandWrap').hidden = ev;
+  renderSignPane();
+}
+function renderSignPane(){
+  const box=document.getElementById('signPane'); if(!box) return;
+  const all=EVENTS.flatMap(e=>evSigns(e).map(s=>({e,s})));
+  box.innerHTML = all.length ? all.map(({e,s})=>`<button type="button" class="signbtn" data-addsign="${e.id}|${s.id}"><img src="${s.data}" alt=""><span><b>${esc(e.name)}</b><br>${s.fmt==='D'?'더블A4':s.fmt==='L'?'A4 가로':'A4 세로'} · 눌러서 목록에 추가</span></button>`).join('')
+    : '<div class="empty" style="width:100%">아직 고정 사인이 없습니다. 「① POP 종류 · 크기 → 행사 상품 POP → 행사 PPT 올리기」로 행사 파일을 올리면 여기에 표시됩니다. 사인이 「POP 배경」으로 잘못 분류됐다면 「행사 관리」에서 용도를 「고정 사인」으로 바꿔 주세요.</div>';
+  box.querySelectorAll('[data-addsign]').forEach(b=>b.onclick=()=>{
+    const [eid,sid]=b.dataset.addsign.split('|'), s=evImg(evById(eid),sid);
+    addItem({tpl:'sign',ev:eid,sign:sid,paper:s.fmt==='D'?'D':'A4',orient:s.fmt==='P'?'P':'L'}); });
 }
 
 /* ---------- 행사 PPT 등록·관리 (이 PC에만 저장) ---------- */
@@ -744,13 +822,18 @@ const KIND_OPTS=[['bg','POP 배경'],['sign','고정 사인'],['off','사용 안
 function renderEvPanel(){
   const list=document.getElementById('evList');
   list.innerHTML = EVENTS.length ? EVENTS.map(e=>`<div class="evcard">
-      <div class="setrow"><input value="${esc(e.name)}" data-evname="${e.id}" aria-label="행사 이름" style="flex:1;min-width:160px"><span class="hint">${new Date(e.added).toLocaleDateString('ko-KR')} 등록</span><button type="button" class="btn sm" data-evdel="${e.id}">행사 삭제</button></div>
+      <div class="setrow"><input value="${esc(e.name)}" data-evname="${e.id}" aria-label="행사 이름" style="flex:1;min-width:160px"><span class="hint">${new Date(e.added).toLocaleDateString('ko-KR')} 등록</span><button type="button" class="btn sm" data-evadd="${e.id}">PPT 추가</button>${EVENTS.length>1?`<select data-evmerge="${e.id}" aria-label="다른 행사와 합치기"><option value="">다른 행사 합치기…</option>${EVENTS.filter(x=>x.id!==e.id).map(x=>`<option value="${x.id}">「${esc(x.name)}」을(를) 여기로 합치기</option>`).join('')}</select>`:''}<button type="button" class="btn sm" data-evdel="${e.id}">행사 삭제</button></div>
       <div class="evimgs">${e.imgs.map(x=>`<div class="evimg"><img src="${x.data}" alt=""><span class="badge reg">${x.fmt==='D'?'더블A4':x.fmt==='L'?'가로':'세로'}</span>
         <select data-kind="${e.id}|${x.id}" aria-label="용도">${opt(KIND_OPTS,x.kind)}</select></div>`).join('')}</div></div>`).join('')
     : '<div class="hint">아직 등록된 행사가 없습니다.</div>';
   list.querySelectorAll('[data-evname]').forEach(i=>i.onchange=()=>{ const e=evById(i.dataset.evname); e.name=i.value.trim()||e.name; saveEvents(); renderSettings(); renderList(); });
   list.querySelectorAll('[data-kind]').forEach(s=>s.onchange=()=>{ const [eid,iid]=s.dataset.kind.split('|'); const x=evImg(evById(eid),iid);
     x.kind=s.value; if(x.kind==='bg'&&!x.box) x.box=[0.05,0.3,0.95,0.93]; saveEvents(); renderSettings(); renderList(); });
+  list.querySelectorAll('[data-evadd]').forEach(b=>b.onclick=()=>pickPpt(b.dataset.evadd));
+  list.querySelectorAll('[data-evmerge]').forEach(s=>s.onchange=()=>{ if(!s.value) return;
+    const to=evById(s.dataset.evmerge), from=evById(s.value); to.imgs.push(...from.imgs);
+    items.forEach(it=>{ if(it.ev===from.id) it.ev=to.id; }); EVENTS=EVENTS.filter(x=>x!==from);
+    if(DEF.ev===from.id){ DEF.ev=to.id; saveDef(); } saveEvents(); save(); renderEvPanel(); renderSettings(); renderList(); toast('두 행사를 합쳤습니다'); });
   list.querySelectorAll('[data-evdel]').forEach(b=>b.onclick=()=>{
     if(!b.dataset.confirm){ b.dataset.confirm=1; b.textContent='한 번 더 누르면 삭제'; return; }
     EVENTS=EVENTS.filter(x=>x.id!==b.dataset.evdel); saveEvents(); if(!evById(DEF.ev)){ DEF.ev=EVENTS[0]?.id||''; saveDef(); } renderEvPanel(); renderSettings(); renderList(); });
@@ -759,45 +842,58 @@ function aHash(im){ const c=document.createElement('canvas'); c.width=c.height=1
   let d; try{ d=x.getImageData(0,0,12,12).data; }catch(e){ return String(Math.random()); }
   const g=[]; for(let i=0;i<144;i++) g.push(d[i*4]*0.3+d[i*4+1]*0.59+d[i*4+2]*0.11); const m=g.reduce((a,b)=>a+b,0)/144; return g.map(v=>v>m?1:0).join(''); }
 const hamming=(a,b)=>{ let n=0; for(let i=0;i<a.length;i++) if(a[i]!==b[i]) n++; return n; };
-async function addPptFile(file){
-  if(!file) return;
-  if(!/\.pptx?$/i.test(file.name)){ toast('PPT 파일(.ppt 또는 .pptx)만 올릴 수 있습니다.'); return; }
-  const ov=overlay('행사 PPT 분석 중…',`${file.name} · 배경과 사인을 자동으로 나누는 중`);
+// 여러 PPT를 한 번에 올리면 한 행사로 묶음 · targetId가 있으면 그 행사에 추가 (예: 03 세로 + 04 더블A4)
+async function addPptFiles(fileList, targetId){
+  const files=[...(fileList||[])].filter(Boolean);
+  if(!files.length) return;
+  const bad=files.filter(f=>!/\.pptx?$/i.test(f.name)); if(bad.length){ toast('PPT 파일(.ppt 또는 .pptx)만 올릴 수 있습니다.'); return; }
+  const target=targetId?evById(targetId):null;
+  const ov=overlay('행사 PPT 분석 중…',`${files.length}개 파일 · 배경과 사인을 자동으로 나누는 중`);
   try{
-    const raw=await extractPptImages(await file.arrayBuffer());
     const found=[];
-    for(const r of raw){
-      const url=URL.createObjectURL(new Blob([r.bytes],{type:r.type})), im=new Image();
-      try{ im.src=url; await im.decode(); }catch(e){ URL.revokeObjectURL(url); continue; }
-      const c=classifyImage(im); if(!c){ URL.revokeObjectURL(url); continue; }
-      const h=aHash(im), dup=found.find(f=>f.fmt===c.fmt && hamming(f.h,h)<=6);
-      if(dup){ if(im.width>dup.im.width){ URL.revokeObjectURL(dup.url); Object.assign(dup,{im,url,...c,h}); } else URL.revokeObjectURL(url); continue; }
-      found.push({im,url,h,...c});
+    for(const file of files){
+      ov.querySelector('small').textContent=`${file.name} 분석 중`;
+      const raw=await extractPptImages(await file.arrayBuffer());
+      for(const r of raw){
+        const url=URL.createObjectURL(new Blob([r.bytes],{type:r.type})), im=new Image();
+        try{ im.src=url; await im.decode(); }catch(e){ URL.revokeObjectURL(url); continue; }
+        const c=classifyImage(im); if(!c){ URL.revokeObjectURL(url); continue; }
+        const h=aHash(im), dup=found.find(f=>f.fmt===c.fmt && hamming(f.h,h)<=6);
+        if(dup){ if(im.width>dup.im.width){ URL.revokeObjectURL(dup.url); Object.assign(dup,{im,url,...c,h}); } else URL.revokeObjectURL(url); continue; }
+        found.push({im,url,h,...c});
+      }
     }
-    if(!found.length){ toast('이 PPT에서 A4 비율의 배경·사인 이미지를 찾지 못했습니다.'); return; }
+    if(!found.length){ toast('PPT에서 A4 비율의 배경·사인 이미지를 찾지 못했습니다.'); return; }
     const imgs=[];
     for(const f of found){
+      if(target && target.imgs.some(x=>x.hash===f.h && x.fmt===f.fmt)){ URL.revokeObjectURL(f.url); continue; }   // 이미 있는 이미지는 건너뜀
       const max=f.fmt==='D'?PRINT_W*2:PRINT_W, r=Math.min(1,max/Math.max(f.im.width,f.im.height)), c=document.createElement('canvas');
       c.width=Math.round(f.im.width*r); c.height=Math.round(f.im.height*r); c.getContext('2d').drawImage(f.im,0,0,c.width,c.height);
-      imgs.push({id:'i'+imgs.length+'_'+Date.now().toString(36),fmt:f.fmt,kind:f.kind,box:f.box,data:c.toDataURL('image/jpeg',0.92),w:f.im.width,h:f.im.height});
+      imgs.push({id:'i'+imgs.length+'_'+Date.now().toString(36),fmt:f.fmt,kind:f.kind,box:f.box,hash:f.h,data:c.toDataURL('image/jpeg',0.92),w:f.im.width,h:f.im.height});
       URL.revokeObjectURL(f.url);
     }
-    imgs.sort((a,b)=>(a.kind===b.kind?0:a.kind==='bg'?-1:1));
-    const name=file.name.replace(/\.pptx?$/i,'').replace(/^[0-9a-f]{8}-/i,'').replace(/[_]+/g,' ').trim().slice(0,40)||'새 행사';
-    const ev={id:'ev'+Date.now(),name,added:Date.now(),imgs};
-    EVENTS.unshift(ev); await saveEvents(); DEF.ev=ev.id; DEF.tpl='event'; saveDef();
-    renderSettings(); openEvPanel(true);
+    let ev=target;
+    if(ev){ ev.imgs.push(...imgs); }
+    else {
+      const name=files[0].name.replace(/\.pptx?$/i,'').replace(/^[0-9a-f]{8}-/i,'').replace(/[_]+/g,' ').trim().slice(0,40)||'새 행사';
+      ev={id:'ev'+Date.now(),name,added:Date.now(),imgs}; EVENTS.unshift(ev);
+    }
+    ev.imgs.sort((a,b)=>(a.kind===b.kind?0:a.kind==='bg'?-1:1));
+    await saveEvents(); DEF.ev=ev.id; DEF.tpl='event'; saveDef();
+    renderSettings(); openEvPanel(true); renderList();
     const nb=imgs.filter(x=>x.kind==='bg').length, ns=imgs.length-nb;
-    toast(`행사를 등록했습니다 · POP 배경 ${nb}개, 고정 사인 ${ns}개 · 잘못 나뉜 것은 「용도」에서 바꾸세요`);
+    toast(`${target?'행사에 추가했습니다':'행사를 등록했습니다'} · POP 배경 ${nb}개, 고정 사인 ${ns}개 · 잘못 나뉜 것은 「용도」에서 바꾸세요`);
   }catch(e){ toast(e.message||'PPT를 읽지 못했습니다'); }
   finally{ ov.remove(); }
 }
+let pptTarget=null;
+function pickPpt(targetId){ pptTarget=targetId||null; document.getElementById('pptFile').click(); }
 (function initEvPanel(){
   const fi=document.getElementById('pptFile'), drop=document.getElementById('pptDrop');
-  fi.onchange=()=>{ if(fi.files[0]) addPptFile(fi.files[0]); fi.value=''; };
-  drop.onclick=()=>fi.click(); drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fi.click(); } };
+  fi.onchange=()=>{ const t=pptTarget; pptTarget=null; addPptFiles(fi.files,t); fi.value=''; };
+  drop.onclick=()=>pickPpt(null); drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pickPpt(null); } };
   drop.ondragover=e=>{ e.preventDefault(); drop.classList.add('drag'); }; drop.ondragleave=()=>drop.classList.remove('drag');
-  drop.ondrop=e=>{ e.preventDefault(); drop.classList.remove('drag'); if(e.dataTransfer.files[0]) addPptFile(e.dataTransfer.files[0]); };
+  drop.ondrop=e=>{ e.preventDefault(); drop.classList.remove('drag'); addPptFiles(e.dataTransfer.files,null); };
   document.getElementById('closeEv').onclick=()=>openEvPanel(false);
 })();
 // 사진 읽기 (trim=true면 캡처 사진의 흰 여백을 자동으로 잘라냄)
@@ -897,10 +993,9 @@ document.getElementById('m_style').addEventListener('keydown',e=>{
 });
 lookupState();
 
-const tabX=document.getElementById('tabXls'), tabM=document.getElementById('tabManual');
-function setTab(x){ tabX.setAttribute('aria-pressed',x); tabM.setAttribute('aria-pressed',!x);
-  document.getElementById('paneXls').hidden=!x; document.getElementById('paneManual').hidden=x; }
-tabX.onclick=()=>setTab(true); tabM.onclick=()=>setTab(false);
+const TABS=[['tabXls','paneXls'],['tabManual','paneManual'],['tabSign','paneSign']];
+function setTab(n){ TABS.forEach(([b,p],i)=>{ document.getElementById(b).setAttribute('aria-pressed',i===n); document.getElementById(p).hidden=i!==n; }); if(n===2) renderSignPane(); }
+TABS.forEach(([b],i)=>document.getElementById(b).onclick=()=>setTab(i));
 
 /* ---------- 엑셀 가격표 ---------- */
 const drop=document.getElementById('drop'), fileInput=document.getElementById('fileInput');
@@ -1115,6 +1210,7 @@ let tt; function toast(m){ document.querySelectorAll('.toast').forEach(t=>t.remo
     saved.forEach(s=>{ const {hasPhoto,...r}=s; const it={paper:'A4',orient:'L',...r};
       if(!['basic','event','sign'].includes(it.tpl)) it.tpl = (it.tpl==='season'||it.tpl==='bkStack'||it.tpl==='bkRec'||it.tpl==='event') ? 'event' : 'basic';
       if(!['D','A4','A5'].includes(it.paper)) it.paper='A4';
+      if(it.tpl==='basic' && it.paper==='D'){ it.paper='A4'; it.orient='L'; }
       items.push(it); });
     await Promise.all(saved.filter(s=>s.hasPhoto).map(async s=>{ const it=items.find(x=>x.id===s.id); const u=await kvGet('photos',s.id); if(it&&u) it.photo=u; }));
     renderList();
