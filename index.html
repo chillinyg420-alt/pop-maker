@@ -132,7 +132,7 @@ td.name{max-width:220px;overflow:hidden;text-overflow:ellipsis}
 <div class="wrap">
   <header>
     <div>
-      <h1><b>POP</b> MAKER <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13-7</span></h1>
+      <h1><b>POP</b> MAKER <span style="font-size:12px;font-weight:500;color:var(--muted)">v2026.11.13-8</span></h1>
       <p class="sub">ST·MS·SP·SE 채널 · 기본 상품 POP · 행사 상품 POP · 더블A4 / A4 · A5 가로·세로</p>
     </div>
     <div class="steps"><span class="chip on">① POP 종류 · 크기</span><span class="chip">② 상품 추가</span><span class="chip">③ PDF 저장 · 인쇄</span></div>
@@ -560,12 +560,11 @@ function specialBadge(ctx,cx,cy,r){
 async function drawSpecialDouble(ctx,B,it){
   // 사진 없음: 왼쪽 좁은 열에 「초특가」 + 상품 정보, 나머지 전부를 판매가로 채움
   const pad=B.h*0.06, DESC=0.12, CAP=0.88, price=toNum(it.sale)||toNum(it.reg);
-  const r=B.h*0.33, cx=B.x+pad*0.5+r*1.12, cy=B.y+pad*0.4+r*1.1;
+  const r=B.h*0.36, cx=B.x+pad*0.5+r*1.12, cy=B.y+B.h/2;          // 상품 정보 없음: 초특가만 왼쪽 가운데
   specialBadge(ctx,cx,cy,r);
-  const colL=B.x+pad*0.8, colR=cx+r*1.2, fs=B.h*0.05;
-  styleLines(ctx,it,colL,cy+r*1.12,fs,colR-colL,FONT_KR);
+  const colR=cx+r*1.2;
   const left=colR+pad*0.3, right=B.x+B.w-pad*0.6, top=B.y+pad*0.5, bottom=B.y+B.h-pad*0.45;
-  const runs=[{t:'₩',size:100*0.75,font:FONT_KR,weight:700},{t:won(price),size:100,font:FONT_NUM}];
+  const runs=[{t:'₩',size:100*0.75,font:FONT_KR,weight:700},{t:won(price),size:100,font:FONT_NUM},{t:'~',size:100,font:FONT_NUM}];   // 가격 뒤 물결 자동
   let w=0; runs.forEach(x=>{ ctx.font=`${x.weight||''} ${x.size}px ${x.font}`; w+=ctx.measureText(x.t).width; });
   const sc=Math.min((right-left)/w, (bottom-top)/(100*(CAP+DESC)));     // 가로·세로 중 먼저 닿는 쪽까지 최대로 키움
   const s=100*sc, base=Math.min(bottom-s*DESC,(top+bottom)/2+s*CAP/2);
@@ -811,10 +810,10 @@ function renderList(){
         <label>크기 · 방향<select id="f_fmt_${it.id}" data-k="fmt">${opt(tpl==='basic'?FMT_ALL.slice(1):FMT_ALL,fmtVal(it))}</select></label>
         ${ev?`<label class="wide">행사<select id="f_ev_${it.id}" data-k="ev">${evOptions(it.ev)}</select></label>`
             :`<label class="wide">브랜드 배경<select id="f_brand_${it.id}" data-k="brand">${brandOptions}</select></label>`}
-        <label>STYLE<input id="f_style_${it.id}" data-k="style" value="${esc(it.style)}"></label>
+        ${ev&&isDbl(it)?'':`<label>STYLE<input id="f_style_${it.id}" data-k="style" value="${esc(it.style)}"></label>
         <label>COLOR<input id="f_color_${it.id}" data-k="color" value="${esc(it.color)}"></label>
-        <label class="wide">SIZE (직접 입력)<input id="f_size_${it.id}" data-k="size" value="${esc(it.size)}" placeholder="예: 230~280 · 비우면 손글씨용 빈칸"></label>
-        ${ev&&isDbl(it)?`<label class="wide">판매가 (원) · 더블A4는 「초특가」 양식으로 판매가만 크게 나옵니다<input id="f_sale_${it.id}" data-k="sale" inputmode="numeric" value="${esc(it.sale||it.reg)}" placeholder="예: 59000"></label>`
+        <label class="wide">SIZE (직접 입력)<input id="f_size_${it.id}" data-k="size" value="${esc(it.size)}" placeholder="예: 230~280 · 비우면 손글씨용 빈칸"></label>`}
+        ${ev&&isDbl(it)?`<label class="wide">판매가 (원) · 더블A4는 「초특가」 양식 — 판매가만 크게, 뒤에 「~」 자동<input id="f_sale_${it.id}" data-k="sale" inputmode="numeric" value="${esc(it.sale||it.reg)}" placeholder="예: 59000"></label>`
         :`<label>정상가 (원)<input id="f_reg_${it.id}" data-k="reg" inputmode="numeric" value="${esc(it.reg)}"></label>
         <label>판매가 (원)<input id="f_sale_${it.id}" data-k="sale" inputmode="numeric" value="${esc(it.sale)}" placeholder="세일 아니면 비움"></label>`}
         ${photoOK?`<div class="wide photo" tabindex="0" data-photo aria-label="상품 사진 넣기">
